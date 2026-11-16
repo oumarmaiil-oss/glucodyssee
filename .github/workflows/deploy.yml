@@ -1,0 +1,65 @@
+name: Déployer sur GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérifier le typage
+        run: npm run lint
+
+      - name: Tests du moteur
+        run: npm test
+
+      - name: Compiler le site
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Signale la nouvelle version aux moteurs de recherche compatibles IndexNow (Bing, Yandex, Seznam, Naver…).
+  # Google ne participe pas à IndexNow : pour Google, passer par la Search Console.
+  indexnow:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prévenir les moteurs de recherche
+        run: |
+          curl -sS -m 30 -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            -d '{"host":"oumarmaiil-oss.github.io","key":"423e6d059f93c2239a49b4943af5ffa6","keyLocation":"https://oumarmaiil-oss.github.io/glucodyssee/423e6d059f93c2239a49b4943af5ffa6.txt","urlList":["https://oumarmaiil-oss.github.io/glucodyssee/"]}' \
+            -w "\nIndexNow : HTTP %{http_code}\n" || echo "IndexNow indisponible, sans conséquence pour le site."
