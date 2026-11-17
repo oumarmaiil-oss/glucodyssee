@@ -460,13 +460,13 @@ export default function App() {
       {source && <FenetreSources id={source} onClose={() => setSource(null)} />}
       {aideInstall && <FenetreInstaller invite={installer} onInstalle={() => setInstaller(null)} onClose={() => setAideInstall(false)} />}
       {annulation && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-2xl border border-line bg-panel shadow-2xl px-4 py-2.5 flex items-center gap-3 text-sm fade-in" role="status">
-          <RefreshCcw size={15} className="text-accent" /> {annulation.message}
-          <button onClick={annuler} className="rounded-lg bg-card2 border border-line font-semibold px-3 py-1">Annuler</button>
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-max max-w-[calc(100vw-24px)] rounded-2xl border border-line bg-panel shadow-2xl px-3.5 py-2.5 flex items-center gap-3 text-[13px] sm:text-sm fade-in" role="status">
+          <RefreshCcw size={15} className="text-accent shrink-0" /> <span className="min-w-0 leading-snug">{annulation.message}</span>
+          <button onClick={annuler} className="shrink-0 rounded-lg bg-card2 border border-line font-semibold px-3 py-1">Annuler</button>
         </div>
       )}
       {maj && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-2xl border border-accent/40 bg-panel shadow-2xl px-4 py-3 flex items-center gap-3 text-sm fade-in">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-max max-w-[calc(100vw-24px)] rounded-2xl border border-accent/40 bg-panel shadow-2xl px-4 py-3 flex items-center gap-3 text-sm fade-in">
           <RefreshCw size={16} className="text-accent" /> Nouvelle version de Glucodyssée installée.
           <button onClick={() => location.reload()} className="rounded-lg bg-accent text-ink font-bold px-3 py-1">Recharger</button>
           <button onClick={() => setMaj(false)} className="text-muted" aria-label="Plus tard"><X size={15} /></button>

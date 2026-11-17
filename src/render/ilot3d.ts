@@ -1,7 +1,8 @@
 /**
  * Îlot de Langerhans en 3D (three.js, chargé à la demande) : un amas de cellules bêta (bleues),
  * alpha (violettes) et delta (grises), traversé par des capillaires. Les granules d'insuline et de glucagon
- * s'échappent au rythme du moteur. Glisser pour faire tourner, pincer ou molette pour zoomer.
+ * s'échappent au rythme du moteur et partent dans le sang des capillaires, où circulent les globules rouges.
+ * L'îlot tourne lentement tout seul ; il s'arrête quand on le manipule. Glisser pour faire tourner, pincer ou molette pour zoomer.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -24,6 +25,11 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
   camera.position.set(0, 1.2, 9);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 16; controls.enablePan = false;
+  // Rotation lente automatique, suspendue pendant et peu après un geste.
+  controls.autoRotate = true; controls.autoRotateSpeed = 2.5; // un tour en 24 s environ (vitesse liée au temps, pas aux images)
+  let repriseRotation: ReturnType<typeof setTimeout> | undefined;
+  controls.addEventListener('start', () => { controls.autoRotate = false; clearTimeout(repriseRotation); });
+  controls.addEventListener('end', () => { clearTimeout(repriseRotation); repriseRotation = setTimeout(() => { controls.autoRotate = true; }, 6000); });
   scene.add(new THREE.AmbientLight(0xffffff, 0.55));
   const d1 = new THREE.DirectionalLight(0xffffff, 1.1); d1.position.set(4, 6, 5); scene.add(d1);
   const d2 = new THREE.DirectionalLight(0x88aaff, 0.5); d2.position.set(-5, -2, -4); scene.add(d2);
@@ -54,6 +60,12 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     new THREE.CatmullRomCurve3([new THREE.Vector3(0, -4, 0.5), new THREE.Vector3(0.3, -1, -0.5), new THREE.Vector3(-0.4, 1, 0.3), new THREE.Vector3(0.2, 4, 0)]),
   ];
   for (const cv of capillaires) scene.add(new THREE.Mesh(new THREE.TubeGeometry(cv, 40, 0.16, 8, false), matCap));
+  // Globules rouges qui circulent dans les capillaires (un seul maillage instancié : léger).
+  const N_GLOB = 14;
+  const geoGlob = new THREE.SphereGeometry(0.13, 10, 8);
+  const globules = new THREE.InstancedMesh(geoGlob, new THREE.MeshStandardMaterial({ color: 0xe0525f, roughness: 0.35, emissive: 0x5a0f18, emissiveIntensity: 0.5 }), N_GLOB * capillaires.length);
+  scene.add(globules);
+  const mGlob = new THREE.Matrix4(), qGlob = new THREE.Quaternion(), eGlob = new THREE.Vector3(1, 0.55, 1), pGlob = new THREE.Vector3();
   // Lymphocytes (type 1).
   const matL = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4, emissive: 0x7f1d1d, emissiveIntensity: 0.5 });
   const lympho = Array.from({ length: 16 }, () => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), matL); m.visible = false; scene.add(m); return m; });
@@ -63,7 +75,7 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
   const gr = Array.from({ length: N_GR }, () => ({ vie: 0, v: new THREE.Vector3(), type: 0 }));
   const geoG = new THREE.BufferGeometry();
   geoG.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geoG.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const points = new THREE.Points(geoG, new THREE.PointsMaterial({ size: 0.09, vertexColors: true, transparent: true, opacity: 0.95 }));
+  const points = new THREE.Points(geoG, new THREE.PointsMaterial({ size: 0.15, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false }));
   scene.add(points);
   const cIns = new THREE.Color(0x7dd3fc), cGlu = new THREE.Color(0xd8b4fe);
 
@@ -76,8 +88,10 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
   const ro = new ResizeObserver(redim); ro.observe(conteneur);
   const emettre = (src: THREE.Vector3, type: number) => {
     const k = gr.findIndex((x) => x.vie <= 0); if (k < 0) return;
-    gr[k].vie = 2.5; gr[k].type = type; gr[k].v.copy(src).normalize().multiplyScalar(0.9 + Math.random() * 0.4);
-    pos[k * 3] = src.x; pos[k * 3 + 1] = src.y; pos[k * 3 + 2] = src.z;
+    const dir = src.clone().add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.6)).normalize();
+    gr[k].vie = 2.6; gr[k].type = type; gr[k].v.copy(dir).multiplyScalar(0.8 + Math.random() * 0.5);
+    const dep = src.clone().add(dir.clone().multiplyScalar(0.34));
+    pos[k * 3] = dep.x; pos[k * 3 + 1] = dep.y; pos[k * 3 + 2] = dep.z;
     const c = type ? cGlu : cIns; col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b;
   };
 
@@ -94,7 +108,8 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
       matA.emissiveIntensity = 0.2 + Math.min(1, Math.max(0, i.glucagon - 0.5)) * 0.8;
       lympho.forEach((m, k) => { m.visible = t1; if (t1) { const a = temps * 0.3 + k * 0.39; m.position.set(Math.cos(a) * (2 + (k % 3) * 0.4), Math.sin(a * 1.3) * 1.5, Math.sin(a) * (2 + (k % 3) * 0.4)); } });
       const vivantes = cels.filter((c) => c.type === 'beta' && c.rang < beta), alphas = cels.filter((c) => c.type === 'alpha');
-      accI += Math.min(40, i.S) * 3 * dt; accG += Math.max(0, i.glucagon - 0.45) * 9 * dt;
+      // Sécrétion : au rythme du moteur, avec la part basale (continue) toujours visible tant qu'il reste des cellules bêta.
+      accI += (Math.min(40, i.S) * 3 + 5) * dt; accG += (Math.max(0, i.glucagon - 0.45) * 9 + 1.5) * dt;
       while (accI >= 1 && vivantes.length) { accI -= 1; emettre(vivantes[(Math.random() * vivantes.length) | 0].p, 0); }
       while (accG >= 1) { accG -= 1; emettre(alphas[(Math.random() * alphas.length) | 0].p, 1); }
       if (accI > 6) accI = 6;
@@ -104,7 +119,16 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
         p.vie -= dt; pos[k * 3] += p.v.x * dt; pos[k * 3 + 1] += p.v.y * dt; pos[k * 3 + 2] += p.v.z * dt;
       }
       geoG.attributes.position.needsUpdate = true; geoG.attributes.color.needsUpdate = true;
-      controls.update();
+      capillaires.forEach((cv, c) => {
+        for (let k = 0; k < N_GLOB; k++) {
+          const u = (temps * 0.09 + k / N_GLOB + c * 0.37) % 1;
+          cv.getPointAt(u, pGlob); pGlob.y += Math.sin(k * 2.3) * 0.05;
+          qGlob.setFromAxisAngle(eGlob.set(0, 1, 0), temps * 2 + k); eGlob.set(1, 0.55, 1);
+          mGlob.compose(pGlob, qGlob, eGlob); globules.setMatrixAt(c * N_GLOB + k, mGlob);
+        }
+      });
+      globules.instanceMatrix.needsUpdate = true;
+      controls.update(dt);
       renderer.render(scene, camera);
     },
     maj(e) { etat = e; },
@@ -114,6 +138,6 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     setDefinition(pr) { defImposee = pr; renderer.setPixelRatio(pr ?? Math.min(window.devicePixelRatio || 1, leger ? 1.25 : 2)); redim(); },
     zoomer(f) { camera.position.multiplyScalar(1 / f); const d = camera.position.length(); if (d < 4) camera.position.setLength(4); if (d > 16) camera.position.setLength(16); },
     setMarges() { /* la 3D occupe toute la scène */ },
-    dispose() { ro.disconnect(); controls.dispose(); renderer.dispose(); geo.dispose(); geoG.dispose(); renderer.domElement.remove(); },
+    dispose() { clearTimeout(repriseRotation); ro.disconnect(); controls.dispose(); renderer.dispose(); geo.dispose(); geoG.dispose(); geoGlob.dispose(); renderer.domElement.remove(); },
   };
 }
