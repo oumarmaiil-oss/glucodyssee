@@ -431,12 +431,12 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     if (faim) texte('Muscles affamés : le sucre n\'entre pas', 300, 790, '#d6b4ff');
     if (i.effort) texte('Effort : les muscles captent le sucre sans insuline', 300, 790, '#6ee7b7');
     if (est.repasEnCours) texte(`${est.repasEnCours.nom} : ${est.repasEnCours.g} g de glucides avalés`, 168, 214, '#e9d5b5');
-    if (est.g > 3) texte(`Estomac : ${Math.round(est.g)} g à digérer`, 452, 300, '#e9d5b5');
-    else if (i.Ra > 0.3) texte('Estomac vide : l\'intestin finit le repas', 452, 300, '#e9d5b5');
-    else texte('À jeun : le sucre vient du foie', 452, 300, '#94a3b8');
+    if (est.g > 3) texte(`Estomac : ${Math.round(est.g)} g à digérer`, 500, 324, '#e9d5b5');
+    else if (i.Ra > 0.3) texte('Estomac vide : l\'intestin finit le repas', 500, 324, '#e9d5b5');
+    else texte('À jeun : le sucre vient du foie', 500, 324, '#94a3b8');
     if (est.vidange > 0.15 && coupees > 0) texte('Intestin : l\'amidon est coupé en glucose', 452, 470, '#fde68a');
     if (!betaOk) texte('Pancréas : plus de cellules bêta', 470, 392, '#94a3b8');
-    if (fx.foieFreine) texte('Metformine : le foie relâche moins de sucre', 170, 296, '#6ee7b7');
+    if (fx.foieFreine) texte('Metformine : le foie relâche moins de sucre', 190, 246, '#6ee7b7');
     if (fx.pancreasForce) texte('Sulfamide : insuline libérée en continu', 470, 414, '#6ee7b7');
     if (fx.incretines && !fx.estomacRalenti) texte('iDPP-4 : incrétines renforcées', 470, 414, '#6ee7b7');
     if (fx.estomacRalenti) texte('aGLP-1 : estomac ralenti, satiété', 470, 360, '#6ee7b7');

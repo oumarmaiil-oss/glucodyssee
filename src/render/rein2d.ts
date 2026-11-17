@@ -59,6 +59,12 @@ export function creerRein2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     // Capillaire péritubulaire (le glucose réabsorbé retourne au sang).
     g.fillStyle = 'rgba(201,66,79,.14)'; g.fillRect(160, 196, 380, 40);
     g.strokeStyle = 'rgba(201,66,79,.45)'; g.lineWidth = 2; g.strokeRect(160, 196, 380, 40);
+    // Le sang y circule (globules rouges et flux), vers la veine du rein.
+    g.save(); g.beginPath(); g.rect(160, 196, 380, 40); g.clip();
+    g.strokeStyle = 'rgba(255,214,214,.16)'; g.lineWidth = 2; g.setLineDash([14, 12]); g.lineDashOffset = -temps * 70;
+    g.beginPath(); g.moveTo(160, 216); g.lineTo(540, 216); g.stroke(); g.setLineDash([]);
+    for (let k = 0; k < 6; k++) { const x = 160 + ((k * 71 + temps * 70) % 400) - 10, y = 206 + ((k * 13) % 22); g.fillStyle = 'rgba(201,66,79,.85)'; g.beginPath(); g.ellipse(x, y, 8, 5, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(120,20,32,.5)'; g.beginPath(); g.ellipse(x, y, 3.5, 2, 0, 0, 7); g.fill(); }
+    g.restore();
     // Glomérule.
     const pale = clamp(t?.nephro ?? 0, 0, 1);
     g.fillStyle = `rgba(201,66,79,${0.55 - 0.3 * pale})`; g.beginPath(); g.arc(110, 150, 46, 0, 7); g.fill();
