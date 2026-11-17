@@ -17,6 +17,8 @@ import { Moniteur } from './widgets.tsx';
 import { PanneauEvolution, PanneauExplorer, PanneauMaladies, type VueEvolution } from './panels.tsx';
 import { minuteDepart, VOYAGE_PAR_ID, type Voyage } from '../content/voyages.ts';
 import { VUES_PATHO } from '../content/vuesPatho.ts';
+import { SOURCES } from '../content/sources.ts';
+import { FenetreSources } from './Sources.tsx';
 
 type Onglet = 'explorer' | 'maladies' | 'evolution';
 
@@ -39,7 +41,7 @@ const NIVEAUX: { n: Niveau; nom: string; pour: string; icone: typeof Compass }[]
 
 /** Où la scène va quand une maladie est ajoutée. */
 const ZONE_LESION: Record<string, ZoneId> = {
-  t1: 'ilot', t2: 'muscles', prediabete: 'sang', gestationnel: 'sang', hypo: 'cerveau', acidocetose: 'graisse', repasSaute: 'sang', effort: 'muscles',
+  hgpo: 'sang', t1: 'ilot', t2: 'muscles', prediabete: 'sang', gestationnel: 'sang', hypo: 'cerveau', acidocetose: 'graisse', repasSaute: 'sang', effort: 'muscles',
   ramadan: 'sang', irc: 'reins', retino: 'yeux', nephro: 'reins', neuro: 'nerfs', pied: 'pieds', coronaire: 'coeur',
 };
 
@@ -53,6 +55,7 @@ export default function App() {
   const [actives, setActives] = useState<PathoActive[]>([]);
   const [focusPatho, setFocusPatho] = useState<string | null>(null);
   const [lectLoc, setLectLoc] = useState(false);
+  const [source, setSource] = useState<string | null>(null);
   const [demandeAtelier, setDemandeAtelier] = useState(0);
   const [demandeSuivi, setDemandeSuivi] = useState<{ type: 'glucose' | 'insuline'; n: number } | null>(null);
   const [traitement, setTraitement] = useState<Traitement>({});
@@ -187,6 +190,7 @@ export default function App() {
       setAllerA({ minute: 16 * 60, n: Date.now() });
     }
     if (!ajout && id === 'hypo') setCollations([]);
+    if (ajout && id === 'hgpo') { setVue('courbe'); setAllerA({ minute: 7 * 60 + 40, n: Date.now() }); }
     setVueEvo(null);
   };
   const onDose = (c: ClasseId, d: number) => { setTraitement((t) => { const n = { ...t }; if (d) n[c] = d; else delete n[c]; return n; }); };
@@ -279,19 +283,7 @@ export default function App() {
           contenu sous <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">CC BY-NC-SA 4.0</a>.
           {' '}<a href="https://github.com/oumarmaiil-oss/glucodyssee/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">Contribuer</a>
         </p>
-        <details className="max-w-xl mx-auto text-left">
-          <summary className="cursor-pointer text-center py-1 hover:text-txt">Sources des chiffres</summary>
-          <ul className="space-y-1 mt-1 leading-snug">
-            <li>• Modèle de glycémie : inspiré du modèle minimal de Bergman et du modèle de repas de Dalla Man (UVA/Padova), simplifié et calibré sur des repères cliniques (10 tests).</li>
-            <li>• HbA1c estimée : formule ADAG, Nathan DM et al., Diabetes Care 2008;31:1473-8.</li>
-            <li>• Temps dans la cible 0,70-1,80 g/L : Battelino T et al., Diabetes Care 2019;42:1593-603.</li>
-            <li>• Risques : UKPDS 35, Stratton IM et al., BMJ 2000;321:405-12 (par point d'HbA1c en moins : −37 % microvasculaire, −14 % infarctus ; observationnel).</li>
-            <li>• Diagnostic, hypoglycémie (niveaux 1-3), traitements : ADA, Standards of Care in Diabetes 2025-2026.</li>
-            <li>• Rein : consensus ADA/KDIGO 2022. Ramadan : guide IDF-DAR 2021. Diabète gestationnel : IADPSG/OMS 2013.</li>
-            <li>• Prévention : Diabetes Prevention Program, NEJM 2002;346:393-403. Îlots : Cabrera O et al., PNAS 2006.</li>
-            <li>• Modèle simplifié d'un adulte de 70 kg : bons sens de variation et bons ordres de grandeur, pas l'évolution d'un patient réel.</li>
-          </ul>
-        </details>
+        <p><button onClick={() => setSource('tout')} className="underline decoration-dotted hover:text-txt">Sources des chiffres ({SOURCES.length} références vérifiables)</button></p>
     </>
   );
 
@@ -406,9 +398,9 @@ export default function App() {
           )}
           <div className="relative flex-1 min-h-0 flex flex-col">
           <div ref={panneau} className="flex-1 overflow-y-auto scroll-thin p-3.5 pr-5 lg:pr-3.5" data-testid="panneau">
-            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} onVoyage={lancerVoyage} onAtelier={() => { setTour(null); setPres(null); setSeq(null); setSite('muscle'); vueManuelle('cellule'); setDemandeAtelier((n) => n + 1); }} onSuivre={(type) => { setTour(null); setPres(null); setSeq(null); setDemandeSuivi({ type, n: Date.now() }); }} onVoirVue={(z, v, st) => { onZone(z); if (st) setSite(st); vueManuelle(v === 'ilot' ? modeIlot : v); }} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
+            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} onVoyage={lancerVoyage} onSource={setSource} onAtelier={() => { setTour(null); setPres(null); setSeq(null); setSite('muscle'); vueManuelle('cellule'); setDemandeAtelier((n) => n + 1); }} onSuivre={(type) => { setTour(null); setPres(null); setSeq(null); setDemandeSuivi({ type, n: Date.now() }); }} onVoirVue={(z, v, st) => { onZone(z); if (st) setSite(st); vueManuelle(v === 'ilot' ? modeIlot : v); }} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
             {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} terrain={terrain} etat={etatAuj} etatSans={etatSans}
-              onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer} onResucrage={resucrer}
+              onSource={setSource} onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer} onResucrage={resucrer}
               onVoir={(v) => { setTour(null); setSeq(null); const sp = focusPatho ? VUES_PATHO[focusPatho]?.site : undefined; if (v === 'cellule' && sp) setSite(sp); vueManuelle(v === 'ilot' ? modeIlot : v); }}
               onPresentation={lancerPresentation}
               onCas={(a, t, z) => { setPres(null); setSeq(null); setTour(null); setActives(a); setTraitement(t); setVueEvo(null); setZone(z); setCollations([]); }}
@@ -435,6 +427,7 @@ export default function App() {
         `Réveil ${(etatScene.stats.aJeun / 100).toFixed(2)} g/L · HbA1c ${etatScene.stats.hba1c.toFixed(1)} % · cible ${Math.round(etatScene.stats.tir * 100)} %`,
         `Appareil : ${navigator.userAgent}`, `Écran : ${window.innerWidth}×${window.innerHeight}`,
       ].join('\n')} />}
+      {source && <FenetreSources id={source} onClose={() => setSource(null)} />}
       {aideInstall && <FenetreInstaller invite={installer} onInstalle={() => setInstaller(null)} onClose={() => setAideInstall(false)} />}
       {annulation && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-2xl border border-line bg-panel shadow-2xl px-4 py-2.5 flex items-center gap-3 text-sm fade-in" role="status">

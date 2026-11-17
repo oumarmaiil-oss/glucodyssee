@@ -11,6 +11,7 @@ le diabète et l'effet des traitements. Toute aide compte, même sans savoir cod
   - dans l'application, bouton vert **Contact** (WhatsApp, contexte joint automatiquement) ;
   - ou sur GitHub : onglet **Issues** → **New issue**, puis choisir le modèle.
 - **Relire le contenu médical** : les textes sont dans `src/content/` (fichiers lisibles,
+  Les sources sont dans `src/content/sources.ts` (et `docs/SOURCES.md`) : chaque fiche y renvoie ; une correction de chiffre doit citer sa source.
   même sans connaître la programmation). Une référence (recommandation, essai, RCP) aide beaucoup.
 - **Traduire** : le wolof et l'anglais sont les priorités. Les traductions médicales doivent
   être relues par un locuteur natif, idéalement soignant.
@@ -37,7 +38,7 @@ Organisation :
 Règles :
 1. **Une modification = une pull request**, petite et expliquée.
 2. `npm test` et `npm run lint` doivent passer.
-3. **Contenu médical** : citer la source (recommandation ADA, IDF, KDIGO, OMS, essai, RCP) dans la description
+3. **Contenu médical** : ajouter ou citer la source dans `src/content/sources.ts`, puis `npm run docs:sources`. Citer la source (recommandation ADA, IDF, KDIGO, OMS, essai, RCP) dans la description
    de la pull request. Pas de chiffre sans source.
 4. **Mobile d'abord** : tester sur un écran de 360 px de large. Beaucoup d'utilisateurs ont des
    téléphones modestes et des forfaits limités : pas de bibliothèque lourde sans nécessité.

@@ -1,7 +1,7 @@
 /**
  * Vue « rein » : un néphron. Le glomérule filtre le glucose (quantité filtrée ∝ glycémie × DFG) ;
  * le tubule proximal le réabsorbe par SGLT2 (≈ 90 %) puis SGLT1 (le reste). La part qui atteint les urines
- * vient du moteur (au-dessus du seuil rénal ≈ 1,80 g/L, abaissé vers 0,70-0,90 g/L par les iSGLT2).
+ * vient du moteur (au-dessus du seuil rénal ≈ 1,80 g/L, abaissé vers 0,70-0,75 g/L par les iSGLT2).
  */
 import { clamp, creerScene2D, hexagone, lerp, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
 import type { Instant } from '../core/clock.ts';
@@ -95,5 +95,15 @@ export function creerRein2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     void temps;
   }
 
-  return creerScene2D(conteneur, opt, { W, H, regions: REGIONS, dessiner, avancer, sMax: 4 });
+  function objet(c: Contexte, [x, y]: Pt): string | null {
+    if (Math.hypot(x - 110, y - 150) < 56) return 'Glomérule : le filtre du rein (≈ 180 g de glucose filtrés par jour)';
+    for (const s of S_SGLT2) { const [px, py] = at(s); if (Math.abs(x - px) < 10 && y > py + 6 && y < py + 26) return (c.etat?.traitement.isglt2 ?? 0) > 0 ? 'SGLT2 bloqué par l\'iSGLT2 : le glucose filtré n\'est plus repris' : 'SGLT2 : il reprend ≈ 90 % du glucose filtré'; }
+    for (const s of S_SGLT1) { const [px, py] = at(s); if (Math.abs(x - px - 16) < 10 && Math.abs(y - py) < 10) return 'SGLT1 : il reprend le reste du glucose filtré'; }
+    if (x > 160 && x < 540 && y > 196 && y < 236) return 'Capillaire : le glucose repris retourne dans le sang';
+    if (x > 340 && x < 420 && y > 500 && y < 546) return 'Urines : le glucose qui n\'a pas été repris';
+    for (let k = 0; k <= 40; k++) { const [px, py] = at(k / 40); if (Math.hypot(x - px, y - py) < 15) return k / 40 < 0.42 ? 'Tubule proximal : c\'est ici que le glucose est repris' : 'Tubule : il conduit l\'urine vers la vessie'; }
+    return null;
+  }
+
+  return creerScene2D(conteneur, opt, { W, H, regions: REGIONS, dessiner, avancer, sMax: 4, objet });
 }

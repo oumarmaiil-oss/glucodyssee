@@ -53,7 +53,7 @@ export const ZONES: Record<ZoneId, Zone> = {
     role: {
       1: 'Le sang transporte le sucre vers tous les organes. Il en contient très peu : à peine une cuillère à café dans tout le corps.',
       2: 'La glycémie normale à jeun est inférieure à 1,00 g/L. Elle monte après le repas puis redescend en 2 à 3 heures. Sous 0,70 g/L, c\'est l\'hypoglycémie.',
-      3: 'Avec 5 litres de sang à 0,90 g/L, le sang ne contient qu\'environ 4,5 g de glucose : la régulation doit être permanente. Diabète : glycémie à jeun ≥ 1,26 g/L (à deux reprises), ou ≥ 2,00 g/L à tout moment avec des symptômes, ou HbA1c ≥ 6,5 % (ADA).',
+      3: 'Avec 5 litres de sang à 0,90 g/L, le sang ne contient qu\'environ 4,5 g de glucose : la régulation doit être permanente. Diabète : glycémie à jeun ≥ 1,26 g/L (à deux reprises), ou ≥ 2,00 g/L 2 h après une HGPO à 75 g, ou ≥ 2,00 g/L à tout moment avec des symptômes, ou HbA1c ≥ 6,5 % (ADA).',
     },
     chiffres: 'À jeun : normal < 1,00 g/L · prédiabète 1,00-1,25 · diabète ≥ 1,26 · hypoglycémie < 0,70',
   },
@@ -104,7 +104,7 @@ export const ZONES: Record<ZoneId, Zone> = {
     role: {
       1: 'Les reins filtrent le sang et récupèrent tout le sucre. Quand il y en a trop dans le sang, il passe dans les urines.',
       2: 'Les reins filtrent environ 180 g de glucose par jour et le réabsorbent presque entièrement, surtout grâce au transporteur SGLT2. Au-dessus d\'environ 1,80 g/L, la capacité est dépassée : le sucre passe dans les urines et entraîne de l\'eau (soif, urines abondantes).',
-      3: 'SGLT2 (début du tubule) réabsorbe environ 90 % du glucose filtré, SGLT1 le reste. Les iSGLT2 abaissent le seuil rénal vers 0,70-0,90 g/L : 50 à 100 g de glucose quittent le corps chaque jour par les urines, indépendamment de l\'insuline.',
+      3: 'SGLT2 (début du tubule) réabsorbe environ 90 % du glucose filtré, SGLT1 le reste. Les iSGLT2 abaissent le seuil rénal vers 0,70-0,75 g/L : 40 à 100 g de glucose quittent le corps chaque jour par les urines, indépendamment de l\'insuline.',
     },
     chiffres: 'Seuil rénal ≈ 1,80 g/L · filtrés ≈ 180 g de glucose par jour',
   },

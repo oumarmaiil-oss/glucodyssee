@@ -1,18 +1,16 @@
 # Glucodyssée : reste à faire
 
-Mis à jour le 16 novembre 2026.
+Mis à jour le 17 novembre 2026.
 
 ## Mettre en ligne (Dr Sow)
-- [ ] **Envoyer le code sur GitHub** : la session Claude n'a pas le droit d'écrire dans ce dépôt (application GitHub
-      Claude non installée sur le compte). Soit installer l'application Claude sur le dépôt
-      (https://github.com/apps/claude) puis demander à Claude de pousser, soit pousser soi-même le dossier fourni.
-- [ ] **Activer GitHub Pages** : Settings › Pages › Source : « GitHub Actions ». Le site sera alors publié
-      automatiquement à chaque modification : https://oumarmaiil-oss.github.io/glucodyssee/
+- [ ] **Activer GitHub Actions comme source de Pages** (le seul blocage) : Settings › Pages › « Build and deployment » ›
+      Source : **GitHub Actions** (au lieu de « Deploy from a branch », qui publie le code brut et donne une page vide).
+      Puis relancer le dernier déploiement (onglet Actions › Re-run jobs). Site : https://oumarmaiil-oss.github.io/glucodyssee/
+- [x] Le code est sur GitHub (branche `main`) ; en attendant, un aperçu fonctionne dans l'artefact Claude.
 - [ ] **Page GitHub** (⚙ à côté de « About ») : description, lien du site, topics `education`, `medical-education`,
       `diabetes`, `pharmacy`, `senegal`, `threejs`, `react`, `pwa`. Cocher « Issues ».
-- [ ] **Google Search Console** : ajouter la propriété `https://oumarmaiil-oss.github.io/glucodyssee/`, puis soumettre
-      le sitemap. GoatCounter : le même compteur qu'Hémodyssée est utilisé (les pages sont distinguées par l'adresse).
-- [ ] **Essai sur un vrai téléphone Android d'entrée de gamme** (îlot 3D, vue Corps, présentation « Le type 2 »).
+- [ ] **Google Search Console** : propriété `https://oumarmaiil-oss.github.io/glucodyssee/`, puis le sitemap.
+- [ ] **Essai sur un vrai téléphone Android d'entrée de gamme** (vue Corps, atelier, îlot 3D, suivi de molécule).
 
 ## À vérifier sur les sources originales (je ne les ai pas toutes confirmées)
 - [ ] Temps sous la cible : < 4 % sous 0,70 g/L et < 1 % sous 0,54 g/L (Battelino 2019) : cité partout, à reconfirmer
@@ -27,6 +25,10 @@ Mis à jour le 16 novembre 2026.
 - [ ] Disponibilité réelle des molécules au Sénégal (DCI mises en avant dans `src/content/classes.ts`).
 
 ## Limites connues du modèle (affichées ou à afficher)
+- Profil « type 2 à la limite du diagnostic » (ancien « début ») : à jeun 1,24 g/L et 2 h 1,77 g/L à l'HGPO, donc
+  intolérance au glucose selon les normes ; le cas clinique « découverte au bilan » utilise désormais le type 2 installé.
+- HGPO : la boisson est absorbée comme un repas (même vidange gastrique) ; la montée réelle est un peu plus rapide.
+- Atelier « La clé et la porte » : modèle volontairement très simple (sang, muscle, foie), séparé du moteur calibré.
 - Doses « standard » d'insuline choisies pour la pédagogie (adulte de 70 kg) : type 1 glargine 20 U + rapide 1 U pour
   12 g de glucides, mélange 30/70 12 U + 8 U ; type 2 glargine 14 U, mélange 16 U + 10 U. **À valider** par un
   diabétologue ; elles ne servent jamais à calculer une dose réelle.
@@ -46,6 +48,18 @@ Mis à jour le 16 novembre 2026.
 - [ ] Idées reçues (chapitre 9), relues par des soignants sénégalais.
 - [ ] Version wolof du niveau « Découvrir » (traduction relue par un soignant locuteur natif).
 - [ ] Liens croisés avec Hémodyssée (`?patho=diabete`), noyau commun (Contact, Installer, voix off, service worker).
+
+## Fait le 17 novembre 2026
+- Vue Corps lisible : flux de glucose chiffrés (g/heure) et bilan entrées/sorties ; une forme par substance ;
+  le repas entre (bouchées), l'estomac se vide, l'intestin coupe l'amidon en glucose.
+- Interaction : suivre une molécule de glucose ou d'insuline ; atelier guidé « La clé et la porte » ; « Agir » (sucre,
+  collation, repas, marche, insuline) ; bulle au survol de chaque objet de la scène.
+- Voyages commentés (glucose, insuline détaillée, défense contre l'hypoglycémie) ; vue « Petits vaisseaux » ;
+  chaque maladie décrite dans chaque vue ; liens organe → maladies.
+- HGPO 75 g avec lecture selon les normes (ADA/OMS, IADPSG/OMS 2013).
+- Sources : 21 références vérifiables, petit document par source dans l'application, `docs/SOURCES.md` produit
+  automatiquement ; seuil rénal sous iSGLT2 corrigé (0,70-0,75 g/L) d'après la source.
+- Documents : README illustré (10 captures), CONTRIBUTING, A_FAIRE ; 25 tests au vert.
 
 ## Fait le 16 novembre 2026
 - Application complète sur la base d'Hémodyssée : même structure (`core`, `content`, `render`, `ui`), même

@@ -144,3 +144,26 @@ test('voyages et vues : chaque étape et chaque maladie ont un texte valable, qu
     for (const k of Object.keys(vp.vues)) assert.ok(['corps', 'ilot', 'cellule', 'rein', 'courbe', 'vaisseau'].includes(k));
   }
 });
+
+test('sources : chaque fiche cite des sources qui existent, chaque source a un lien et un usage', async () => {
+  const { SOURCES, SOURCE_PAR_ID, SOURCES_FICHE } = await import('../content/sources.ts');
+  for (const s of SOURCES) { assert.ok(/^https:\/\//.test(s.lien), s.id); assert.ok(s.tire.length && s.ou.length && s.citation.length > 30, s.id); }
+  for (const [k, ids] of Object.entries(SOURCES_FICHE)) {
+    assert.ok(PATHO_PAR_ID[k] || CLASSE_PAR_ID[k as ClasseId], `fiche inconnue : ${k}`);
+    for (const id of ids) assert.ok(SOURCE_PAR_ID[id], `${k} : source ${id}`);
+  }
+  for (const p of PATHOLOGIES) assert.ok(SOURCES_FICHE[p.id]?.length, `${p.id} sans source`);
+  for (const c of CLASSES) assert.ok(SOURCES_FICHE[c.id]?.length, `${c.id} sans source`);
+});
+
+test('HGPO : lecture selon les normes (sain normal, type 2 installé diabète, grossesse)', async () => {
+  const { resultatHgpo } = await import('./engine.ts');
+  const lire = (a: PathoActive[]) => resultatHgpo(calculer({ ...terrain(a), hgpo: true }, {}));
+  const sain = lire([]);
+  assert.equal(sain.niveau, 'ok'); assert.ok(sain.t120 < 140 && sain.t0 < 100, `${sain.t0} ${sain.t120}`);
+  const t2 = lire([{ id: 't2', s: 0.7 }]);
+  assert.equal(t2.niveau, 'alert'); assert.ok(t2.t120 >= 200);
+  const pre = lire([{ id: 't2', s: 0.4 }]);
+  assert.equal(pre.niveau, 'warn'); assert.ok(pre.t120 >= 140 && pre.t120 < 200, `${pre.t120}`);
+  assert.match(lire([{ id: 'gestationnel', s: 0.7 }]).criteres, /0,92/);
+});

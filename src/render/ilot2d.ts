@@ -4,7 +4,7 @@
  * sécrétion d'insuline et indice de glucagon de l'instant. Type 1 : lymphocytes et cellules bêta détruites ;
  * type 2 : cellules bêta qui s'éteignent avec les années ; sulfamide : canaux K-ATP fermés.
  */
-import { clamp, COUL, creerScene2D, hexagone, type Contexte, type OptionsRendu, type Region, type Rendu } from './scene2d.ts';
+import { clamp, COUL, creerScene2D, hexagone, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
 import type { Instant } from '../core/clock.ts';
 import { effetsVisibles } from '../core/effets.ts';
 
@@ -124,5 +124,15 @@ export function creerIlot2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     }
   }
 
-  return creerScene2D(conteneur, opt, { W, H, regions: REGIONS, dessiner, avancer, repli: { pancreas: 'ilot' }, sMax: 4 });
+  function objet(c: Contexte, [x, y]: Pt): string | null {
+    const beta = c.etat?.terrain.beta ?? 1;
+    if (c.etat?.terrain.type === 't1') for (const l of lympho) { const a = l.a + c.temps * 0.15, d = R * (l.d + 0.05 * Math.sin(c.temps + l.ph)); if (Math.hypot(x - CX - Math.cos(a) * d, y - CY - Math.sin(a) * d) < 10) return 'Lymphocyte : il attaque les cellules bêta (type 1, maladie auto-immune)'; }
+    for (const p of gran) if (Math.hypot(x - p.x, y - p.y) < 6) return p.type === 'ins' ? 'Grain d\'insuline libéré dans le sang' : 'Grain de glucagon libéré dans le sang';
+    if (Math.abs(y - (CY - 10)) < 17) return 'Capillaire sanguin : il emporte l\'insuline et le glucagon (hexagones : glucose)';
+    for (const s of CELLULES) if (Math.hypot(x - s.x, y - s.y) < s.r) return s.type === 'beta' ? (s.rang < beta ? 'Cellule bêta : elle fabrique l\'insuline quand le sucre monte' : 'Cellule bêta détruite ou épuisée : elle ne fabrique plus d\'insuline') : s.type === 'alpha' ? 'Cellule alpha : elle libère le glucagon quand le sucre baisse' : 'Cellule delta : la somatostatine, qui freine ses voisines';
+    if (Math.hypot(x - CX, y - CY) > R + 10) return 'Pancréas exocrine : il fabrique les enzymes de la digestion';
+    return null;
+  }
+
+  return creerScene2D(conteneur, opt, { W, H, regions: REGIONS, dessiner, avancer, repli: { pancreas: 'ilot' }, sMax: 4, objet });
 }

@@ -24,7 +24,13 @@ export interface Rendu {
   setSite?(s: string): void;
 }
 
-export interface OptionsRendu { onPick?: (z: ZoneId | null) => void; onHover?: (z: ZoneId | null) => void; leger?: boolean }
+export interface OptionsRendu {
+  onPick?: (z: ZoneId | null) => void;
+  onHover?: (z: ZoneId | null) => void;
+  /** Nom de l'objet sous la souris (et position dans la scène, en pixels), ou null. */
+  onObjet?: (nom: string | null, x: number, y: number) => void;
+  leger?: boolean;
+}
 
 export interface Contexte {
   g: CanvasRenderingContext2D;
@@ -86,6 +92,8 @@ export function creerScene2D(conteneur: HTMLElement, opt: OptionsRendu, def: {
   /** Zone affichée quand on demande une zone absente de cette vue (sinon : vue d'ensemble). */
   repli?: Partial<Record<ZoneId, ZoneId>>;
   siteInitial?: string;
+  /** Nom de l'objet dessiné près du point (coordonnées du dessin), pour la bulle de survol. */
+  objet?: (c: Contexte, p: Pt) => string | null;
   /** Point à suivre avec la caméra (molécule suivie), ou null. */
   suivi?: () => Pt | null;
 }): Rendu {
@@ -123,9 +131,14 @@ export function creerScene2D(conteneur: HTMLElement, opt: OptionsRendu, def: {
       g.fillStyle = coul; g.fillText(t, x, y);
     },
   };
-  const onMove = (ev: PointerEvent) => { if (ev.pointerType !== 'mouse') return; const z = zoneEn(monde(ev)); if (z !== c.survol) { c.survol = z; cv.style.cursor = z ? 'pointer' : 'default'; opt.onHover?.(z); } };
+  const onMove = (ev: PointerEvent) => {
+    if (ev.pointerType !== 'mouse') return;
+    const pt = monde(ev), r = cv.getBoundingClientRect();
+    opt.onObjet?.(def.objet?.(c, pt) ?? null, ev.clientX - r.left, ev.clientY - r.top);
+    const z = zoneEn(pt); if (z !== c.survol) { c.survol = z; cv.style.cursor = z ? 'pointer' : 'default'; opt.onHover?.(z); } };
   const onUp = (ev: PointerEvent) => { if (!zoom.aDeplace()) opt.onPick?.(zoneEn(monde(ev))); };
-  cv.addEventListener('pointermove', onMove); cv.addEventListener('pointerup', onUp);
+  const onLeave = () => opt.onObjet?.(null, 0, 0);
+  cv.addEventListener('pointermove', onMove); cv.addEventListener('pointerup', onUp); cv.addEventListener('pointerleave', onLeave);
 
   return {
     frame(i, dt) {
@@ -161,6 +174,6 @@ export function creerScene2D(conteneur: HTMLElement, opt: OptionsRendu, def: {
     zoomer: (f) => zoom.zoomer(f),
     setMarges(m) { marges = m; },
     setSite(s) { c.site = s; },
-    dispose() { zoom.dispose(); ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onUp); cv.remove(); },
+    dispose() { zoom.dispose(); ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onUp); cv.removeEventListener('pointerleave', onLeave); cv.remove(); },
   };
 }

@@ -25,6 +25,30 @@ export const REPAS_RAMADAN: Repas[] = [
   { h: 22, g: 40, nom: 'Dîner' },
 ];
 
+/** HGPO : 75 g de glucose bus à jeun à 8 h ; lecture à 0, 1 h et 2 h (aucun autre apport pendant l'épreuve). */
+export const HGPO: Repas = { h: 8, g: 75, nom: 'HGPO : 75 g de glucose' };
+
+export interface ResultatHgpo { t0: number; t60: number; t120: number; conclusion: string; niveau: 'ok' | 'warn' | 'alert'; criteres: string }
+/**
+ * Lecture de l'HGPO selon les normes : hors grossesse (ADA, OMS) à jeun et à 2 h ; grossesse (IADPSG/OMS 2013) à 0, 1 h et 2 h.
+ * Le moteur absorbe la boisson sucrée comme un repas : la montée réelle est un peu plus rapide (limite affichée).
+ */
+export function resultatHgpo(e: Etat): ResultatHgpo {
+  const m0 = Math.round(HGPO.h * 60) - 1;
+  const t0 = e.G[m0], t60 = e.G[m0 + 61], t120 = e.G[m0 + 121];
+  if (e.terrain.type === 'gestationnel') {
+    const dg = t0 >= 92 || t60 >= 180 || t120 >= 153;
+    return { t0, t60, t120, conclusion: dg ? 'Diabète gestationnel (au moins une valeur au-dessus des seuils)' : 'Pas de diabète gestationnel', niveau: dg ? 'alert' : 'ok', criteres: 'Grossesse (IADPSG / OMS 2013) : à jeun ≥ 0,92 · 1 h ≥ 1,80 · 2 h ≥ 1,53 g/L' };
+  }
+  const diab = t120 >= 200 || t0 >= 126, igt = t120 >= 140, ifg = t0 >= 100;
+  return {
+    t0, t60, t120,
+    conclusion: diab ? 'Diabète (2 h ≥ 2,00 g/L ou à jeun ≥ 1,26 g/L) : à confirmer par un 2e examen' : igt ? 'Intolérance au glucose (prédiabète) : 2 h entre 1,40 et 1,99 g/L' : ifg ? 'Hyperglycémie modérée à jeun (prédiabète) : 2 h normal' : 'Normal : à jeun < 1,00 g/L et 2 h < 1,40 g/L',
+    niveau: diab ? 'alert' : igt || ifg ? 'warn' : 'ok',
+    criteres: 'Hors grossesse (ADA ; OMS) : 2 h < 1,40 normal · 1,40-1,99 intolérance au glucose · ≥ 2,00 diabète',
+  };
+}
+
 export const TERRAIN_SAIN: Terrain = {
   type: 'aucun', ...pick(PROFILS.sain), rein: 1, repas: REPAS_JOUR, collations: [], injectionsPlus: [], efforts: [], ramadan: false, repasSaute: false,
   retino: 0, nephro: 0, neuro: 0, pied: 0, coronaire: 0,
@@ -40,6 +64,7 @@ export const insuffisanceRenale = (t: Terrain) => t.rein < 0.65;
 
 /** Repas effectifs de la journée (Ramadan, repas sauté). */
 export function repasDuJour(t: Terrain): Repas[] {
+  if (t.hgpo) return [HGPO, ...(t.collations ?? [])].sort((a, b) => a.h - b.h);
   let r = t.ramadan ? REPAS_RAMADAN : t.repas;
   if (t.repasSaute && !t.ramadan) r = r.filter((x) => x.nom !== 'Déjeuner');
   return [...r, ...(t.collations ?? [])].sort((a, b) => a.h - b.h);

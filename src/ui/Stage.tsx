@@ -100,6 +100,7 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
   const capteurRef = useRef<HTMLSpanElement>(null);
   const pastilleRef = useRef<HTMLSpanElement>(null);
   const [survol, setSurvol] = useState<ZoneId | null>(null);
+  const [bulle, setBulle] = useState<{ t: string; x: number; y: number } | null>(null);
   useEffect(() => { setSurvol(null); }, [vue]);
   const [pret, setPret] = useState(false);
   const [erreur3D, setErreur3D] = useState(false);
@@ -202,7 +203,7 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
     const el = hote.current!;
     let annule = false;
     setPret(false); setErreur3D(false);
-    const opts = { onPick: (z: ZoneId | null) => onZoneRef.current(z), onHover: setSurvol, leger };
+    const opts = { onPick: (z: ZoneId | null) => onZoneRef.current(z), onHover: setSurvol, onObjet: (t: string | null, x: number, y: number) => setBulle(x || y ? { t: t ?? '', x, y } : null), leger };
     const monter = (r: Rendu) => {
       if (annule) { r.dispose(); return; }
       rendu.current = r; r.maj(etatRef.current, etatSans); r.setSite?.(vue === 'vaisseau' ? siteMicro : site); setPret(true);
@@ -394,7 +395,7 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
 
   return (
     <div className={`${pleinEcran ? 'fixed inset-0 z-[45] rounded-none border-0' : 'relative w-full h-full rounded-2xl border border-line'} overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#2a2112_0%,#0b0f1c_55%,#070a12_100%)]`} data-testid="scene">
-      <div ref={hote} onPointerLeave={() => setSurvol(null)} onPointerDown={geste3D} onWheel={geste3D} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
+      <div ref={hote} onPointerLeave={() => { setSurvol(null); setBulle(null); }} onPointerDown={geste3D} onWheel={geste3D} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
       {erreur3D && <div className="absolute inset-0 grid place-items-center text-center p-6 text-muted text-sm">La 3D n'est pas disponible sur cet appareil.<br />Utilisez la vue 2D.</div>}
 
@@ -507,7 +508,10 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
         </div>
       )}
 
-      {nomSurvol && (
+      {bulle && (bulle.t || nomSurvol) && (
+        <div className="absolute z-30 pointer-events-none max-w-[260px] rounded-lg bg-ink/95 border border-miel/50 px-2.5 py-1 text-[11.5px] leading-snug text-txt shadow-lg" style={{ left: Math.min(bulle.x + 14, (hote.current?.clientWidth ?? 400) - 270), top: bulle.y + 16 }}>{bulle.t || `${nomSurvol} · cliquer pour voir le détail`}</div>
+      )}
+      {nomSurvol && !bulle && (
         <div className="absolute top-12 lg:top-14 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 border border-line px-3 py-1 text-xs font-semibold pointer-events-none z-10">{nomSurvol} · cliquer pour zoomer</div>
       )}
 

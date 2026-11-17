@@ -22,6 +22,7 @@ export interface Terrain {
   efforts: Effort[];
   ramadan: boolean;
   repasSaute: boolean;
+  hgpo?: boolean; // épreuve d'HGPO : 75 g de glucose à 8 h, à jeun, sans autre repas avant 10 h
   // Complications installées (0..1), pour l'affichage et l'évaluation.
   retino: number;
   nephro: number;

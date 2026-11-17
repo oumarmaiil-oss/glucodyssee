@@ -7,10 +7,11 @@ import type { ClasseId, Niveau, Terrain, Traitement, TypeDiabete } from '../core
 import { PROFILS, type Profil } from '../core/moteur.ts';
 import type { ZoneId } from './zones.ts';
 
-export type Famille = 'diabetes' | 'aigues' | 'situations' | 'complications';
+export type Famille = 'diabetes' | 'examens' | 'aigues' | 'situations' | 'complications';
 
 export const FAMILLES: Record<Famille, string> = {
   diabetes: 'Les diabètes',
+  examens: 'Examens',
   aigues: 'Urgences',
   situations: 'Situations de la vie',
   complications: 'Complications',
@@ -52,7 +53,7 @@ export const PATHOLOGIES: Pathologie[] = [
   // ── Les diabètes ──
   {
     id: 't2', nom: 'Diabète de type 2', court: 'Type 2', famille: 'diabetes', zones: ['muscles', 'foie', 'pancreas', 'ilot', 'graisse', 'sang', 'intestin', 'reins', 'globules', 'coeur'], niveauMin: 1,
-    severites: ['Début', 'Installé', 'Évolué'],
+    severites: ['À la limite du diagnostic', 'Installé', 'Évolué'],
     appliquer: (t, s) => profil(t, s <= 0.4 ? PROFILS.t2leger : s >= 1 ? PROFILS.t2evolue : PROFILS.t2, 't2'),
     texte: {
       1: 'Les portes des cellules répondent mal à la clé (l\'insuline) : c\'est la résistance à l\'insuline. Le pancréas compense pendant des années, puis s\'épuise. Le sucre reste dans le sang, souvent sans aucun signe.',
@@ -116,6 +117,19 @@ export const PATHOLOGIES: Pathologie[] = [
       texte: 'Diététique (répartition des glucides sur la journée), activité physique adaptée, autosurveillance. Insuline si les objectifs ne sont pas atteints (traitement de référence pendant la grossesse).',
       nonMedicamenteux: 'Fractionner les repas, éviter les boissons sucrées, marcher après les repas.',
     },
+  },
+  // ── Examens ──
+  {
+    id: 'hgpo', nom: 'Hyperglycémie provoquée par voie orale (HGPO)', court: 'HGPO', famille: 'examens', zones: ['sang', 'intestin', 'pancreas'], niveauMin: 1,
+    appliquer: (t) => { t.hgpo = true; },
+    texte: {
+      1: 'Un test pour savoir si le corps sait gérer le sucre : à jeun, on boit 75 g de glucose dissous dans de l\'eau, puis on mesure la glycémie après 1 heure et après 2 heures.',
+      2: 'HGPO à 75 g, le matin après 8 heures de jeûne, en 5 minutes, sans manger ni fumer pendant l\'épreuve, au repos. Hors grossesse (ADA, OMS) : à 2 h, < 1,40 g/L normal, 1,40 à 1,99 g/L intolérance au glucose (prédiabète), ≥ 2,00 g/L diabète. Pendant la grossesse (24-28 semaines) : diabète gestationnel si à jeun ≥ 0,92, 1 h ≥ 1,80 ou 2 h ≥ 1,53 g/L.',
+      3: 'L\'HGPO dépiste mieux que la glycémie à jeun l\'intolérance au glucose (défaut de la réponse après le repas). Hors grossesse, un diagnostic de diabète se confirme par un 2e examen, sauf symptômes nets. Faussée par une maladie aiguë, certains médicaments (corticoïdes) ou un régime très pauvre en glucides les jours précédents. Dans Glucodyssée, la boisson est absorbée comme un repas : la montée réelle est un peu plus rapide.',
+    },
+    voir: 'Vue Courbes : la boisson à 8 h, puis les lectures à 0, 1 h et 2 h, avec la conclusion selon les normes ; essayez avec un sujet sain, un prédiabète, un type 2 ou une grossesse.',
+    consequences: ['Normal : glycémie revenue sous 1,40 g/L à 2 h', 'Intolérance au glucose : risque élevé de diabète, moment idéal pour agir', 'Diabète : à confirmer, puis bilan et traitement'],
+    traitement: { propose: {}, texte: 'C\'est un examen, pas une maladie. Selon le résultat : rien (normal), mesures d\'hygiène de vie et contrôle annuel (prédiabète), ou prise en charge du diabète (après confirmation).' },
   },
   // ── Urgences ──
   {

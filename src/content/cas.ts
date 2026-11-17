@@ -47,7 +47,7 @@ export const CAS: CasClinique[] = [
     id: 'decouverte', accroche: 'Homme de 52 ans, bilan de médecine du travail',
     vignette: 'M. N., 52 ans, commerçant, ne se plaint de rien. Tour de taille 104 cm, son père était diabétique.',
     examen: ['Glycémie à jeun 1,42 g/L, contrôlée à 1,38 g/L', 'HbA1c 7,6 %', 'Créatinine normale, pas d\'albumine dans les urines'],
-    pathos: [{ id: 't2', s: 0.4 }], zone: 'foie',
+    pathos: [{ id: 't2', s: 0.7 }], zone: 'foie',
     questions: [
       { q: 'Quel est le diagnostic ?', options: [
         { t: 'Diabète de type 2', ok: true, pourquoi: 'Glycémie à jeun ≥ 1,26 g/L à deux reprises et HbA1c ≥ 6,5 %, terrain typique.' },

@@ -6,7 +6,7 @@
  * Le degré d'atteinte vient du terrain (complications simulées, ou installées avec les années dans l'onglet Évolution).
  * Représentation pédagogique : les étapes sont celles décrites dans les recommandations, sans échelle de temps.
  */
-import { clamp, creerScene2D, hexagone, lerp, type Contexte, type OptionsRendu, type Region, type Rendu } from './scene2d.ts';
+import { clamp, creerScene2D, hexagone, lerp, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
 import type { Instant } from '../core/clock.ts';
 
 const W = 640, H = 520, Y0 = 200, Y1 = 300; // bords de la lumière du capillaire
@@ -106,6 +106,18 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: OptionsRendu = {}):
     }
   }
 
-  const base = creerScene2D(conteneur, opt, { W, H, regions: REGIONS, dessiner, avancer, siteInitial: 'retine', repli: { pieds: 'nerfs' }, sMax: 4 });
+  function objet(c: Contexte, [x, y]: Pt): string | null {
+    const a = atteinte(c), ep = 6 + 16 * clamp(a / 0.6, 0, 1);
+    if (c.site === 'retine' && a > 0.4 && Math.hypot(x - W * 0.4, y - Y1 - ep - 14) < 26) return 'Micro-anévrisme : la paroi fragilisée se dilate';
+    if (a > 0.72 && x > W * 0.62 && x < W * 0.62 + 60 && y > Y0 && y < Y1) return 'Le capillaire se bouche : le tissu en aval manque d\'oxygène';
+    if ((y > Y0 - ep - 3 && y < Y0) || (y > Y1 && y < Y1 + ep + 3)) return a > 0.2 ? 'Membrane basale épaissie et rigide (points bruns : produits de glycation, AGE)' : 'Paroi du capillaire (membrane basale)';
+    if (y >= Y0 && y <= Y1) return 'Lumière du capillaire : globules rouges et glucose (hexagones dorés)';
+    if (c.site === 'retine' && a > 0.9 && x > W * 0.55 && y > Y1 + 20) return 'Néovaisseaux : de nouveaux vaisseaux fragiles qui peuvent saigner';
+    if (c.site === 'nerf' && y > Y1 + 40 && y < Y1 + 170) return 'Fibres nerveuses : en pointillé gris, celles qui ne fonctionnent plus';
+    if (y > Y1 + ep && y < H - 40) return c.site === 'glomerule' ? 'Côté urines : l\'albumine qui fuit (points bleus) se dépiste chaque année' : c.site === 'retine' ? 'Rétine : fuites (exsudats jaunes) et zones privées de sang' : 'Tissu du nerf';
+    return null;
+  }
+
+  const base = creerScene2D(conteneur, opt, { W, H, regions: REGIONS, dessiner, avancer, siteInitial: 'retine', repli: { pieds: 'nerfs' }, sMax: 4, objet });
   return { ...base, setEtape(i) { etapeForcee = i; } };
 }

@@ -5,7 +5,7 @@
  *    Type 2 : serrures « grippées » (gouttelettes de graisse dans la cellule, cascade qui répond mal).
  *  - Foie : glycogène stocké ou libéré, glucose qui sort (production hépatique) ou entre, glucagon et insuline.
  */
-import { clamp, COUL, creerScene2D, cle, hexagone, lerp, type Contexte, type OptionsRendu, type Region, type Rendu } from './scene2d.ts';
+import { clamp, COUL, creerScene2D, cle, hexagone, lerp, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
 import type { Instant } from '../core/clock.ts';
 import { effetsVisibles } from '../core/effets.ts';
 
@@ -170,6 +170,18 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
     }
   }
 
-  const base = creerScene2D(conteneur, opt, { W, H, regions, dessiner, avancer, siteInitial, repli: { graisse: 'muscles' }, sMax: 4 });
+  function objet(c: Contexte, [x, y]: Pt): string | null {
+    const foie = c.site === 'foie';
+    for (const rx of RECEPTEURS) if (Math.abs(x - rx) < 14 && y > MEMB - 46 && y < MEMB + 28) return 'Récepteur de l\'insuline (en Y) : la clé s\'y fixe et lance le signal';
+    for (const gt of glut) { const gy = lerp(MEMB + 120, MEMB, gt.pos); if (Math.abs(x - gt.x) < 12 && Math.abs(y - gy) < 15) return foie ? 'Transporteur GLUT2 : le glucose entre ou sort du foie' : gt.pos > 0.8 ? 'Porte GLUT4 ouverte, à la surface : le glucose entre' : 'Porte GLUT4 en réserve dans la cellule : elle attend le signal de l\'insuline'; }
+    if (!foie) for (const rx of RECEPTEURS.slice(0, 2)) for (const [dx, dy, nom] of [[0, 52, 'IRS'], [26, 92, 'PI3K'], [52, 132, 'Akt']] as const) if (Math.hypot(x - rx - dx, y - MEMB - dy) < 9) return `${nom} : un relais du signal de l'insuline, du récepteur jusqu'aux portes GLUT4`;
+    if (y < MEMB - 4 && y > 20) return 'Sang qui baigne la cellule : chaque hexagone doré est une molécule de glucose';
+    if (foie && y > MEMB + 140) return 'Glycogène : la réserve de sucre du foie';
+    if (y > MEMB + 8) return foie ? 'Hépatocyte (cellule du foie)' : 'Cellule musculaire';
+    if (Math.abs(y - MEMB) <= 8) return 'Membrane de la cellule';
+    return null;
+  }
+
+  const base = creerScene2D(conteneur, opt, { W, H, regions, dessiner, avancer, siteInitial, repli: { graisse: 'muscles' }, sMax: 4, objet });
   return { ...base, setAtelier(r, cb) { if (r && !atelier) { pool = 60; entres.length = 0; } atelier = r; onStats = cb; } };
 }

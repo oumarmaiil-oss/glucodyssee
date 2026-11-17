@@ -7,7 +7,7 @@
 import type { ClasseId, Etat, Traitement } from './types.ts';
 import { PATHO_PAR_ID, type PathoActive } from '../content/pathologies.ts';
 import { CLASSE_PAR_ID } from '../content/classes.ts';
-import { dfg } from './engine.ts';
+import { dfg, resultatHgpo } from './engine.ts';
 
 export interface Point { ok: boolean; texte: string }
 
@@ -70,6 +70,11 @@ export function evaluerPathologie(id: string, actives: PathoActive[], e: Etat, t
       P.push(st.max < 140 ? { ok: true, texte: `Pics après les repas sous 1,40 g/L.` } : { ok: false, texte: `Pic à ${gl(st.max)} g/L après un repas (objectif < 1,40 g/L à 1 h).` });
       if (NON_INSULINES.some((c) => on(tr, c) && c !== 'metformine')) P.push({ ok: false, texte: 'Pendant la grossesse, l\'insuline est le traitement de référence.' });
       break;
+    case 'hgpo': {
+      const r = resultatHgpo(e);
+      P.push({ ok: r.niveau === 'ok', texte: `HGPO : à jeun ${gl(r.t0)} · 1 h ${gl(r.t60)} · 2 h ${gl(r.t120)} g/L → ${r.conclusion}.` });
+      break;
+    }
     case 'hypo':
       hypos();
       if (on(tr, 'glibenclamide')) P.push({ ok: false, texte: 'Le glibenclamide est la cause la plus probable : le remplacer (gliclazide, iDPP-4).' });

@@ -16,6 +16,11 @@ export const VUES_PATHO: Record<string, VuesPatho> = {
     rein: 'Au-dessus de 1,80 g/L après les repas, un peu de sucre passe dans les urines.',
     vaisseau: 'Le sucre haut colle aux parois des petits vaisseaux ; avec les années (onglet Évolution), elles s\'abîment.',
   } },
+  hgpo: { vues: {
+    courbe: 'La boisson de 75 g à 8 h, puis les lectures à 0, 1 h et 2 h, comparées aux seuils (repères en pointillés).',
+    corps: 'Pas de repas : seul le glucose de la boisson entre par l\'intestin, et le pancréas répond.',
+    ilot: 'La réponse des cellules bêta au glucose bu : forte chez le sujet sain, faible et retardée dans le type 2.',
+  } },
   t1: { site: 'muscle', vues: {
     ilot: 'Les lymphocytes ont détruit les cellules bêta : plus d\'insuline (en 3D, cellules bêta éteintes).',
     corps: 'Pancréas éteint, sang plein de sucre, muscles affamés ; sans insuline, les graisses sont brûlées (acidocétose).',

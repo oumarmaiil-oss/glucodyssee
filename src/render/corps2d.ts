@@ -415,11 +415,11 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     for (const p of ins) { const [x, y] = p.c ? at(p.c, p.s) : at(BOUCLES[p.b].c, p.s); cle(g, x - p.o * 4, y, 3.4, 0); }
 
     for (const h of horm) { const [x, y] = at(h.c, h.s); if (h.coul === 'glp1') losange(g, x + h.o * 3, y, 4); else triangle(g, x + h.o * 3, y, 4.2); }
-    if (i.glucagon > 1.15) texte('Glucagon : le pancréas demande au foie de libérer du sucre', 160, 270, '#d8b4fe');
+    if (i.glucagon > 1.15 && !tr) texte('Glucagon : le pancréas demande au foie de libérer du sucre', 160, 270, '#d8b4fe');
     // Site d'injection.
     if (i.injection) { g.strokeStyle = COUL.insuline; g.lineWidth = 2; g.beginPath(); g.moveTo(392, 506); g.lineTo(374, 520); g.stroke(); g.fillStyle = COUL.insuline; g.beginPath(); g.arc(372, 521, 3, 0, 7); g.fill(); texte(i.injection, 450, 506, '#7dd3fc'); }
     // Graisses libérées sans insuline (type 1 non traité) : vers le foie, corps cétoniques.
-    if (e && e.risques.cetose >= 1) {
+    if (e && e.risques.cetose >= 1 && !tr) {
       for (let k = 0; k < 8; k++) { const s = ((temps * 0.25 + k / 8) % 1); g.fillStyle = 'rgba(250,204,120,.85)'; g.beginPath(); g.arc(lerp(400, 270, s), lerp(480, 350, s), 2.6, 0, 7); g.fill(); }
       texte('Sans insuline : graisses brûlées → corps cétoniques (acidocétose)', 300, 600, '#fb7185');
     }
@@ -431,8 +431,9 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     if (faim) texte('Muscles affamés : le sucre n\'entre pas', 300, 790, '#d6b4ff');
     if (i.effort) texte('Effort : les muscles captent le sucre sans insuline', 300, 790, '#6ee7b7');
     if (est.repasEnCours) texte(`${est.repasEnCours.nom} : ${est.repasEnCours.g} g de glucides avalés`, 168, 214, '#e9d5b5');
-    if (est.g > 3) texte(`Estomac : ${Math.round(est.g)} g encore à digérer`, 462, 330, '#e9d5b5');
-    else texte('Estomac vide : à jeun, le sucre vient du foie', 462, 330, '#94a3b8');
+    if (est.g > 3) texte(`Estomac : ${Math.round(est.g)} g à digérer`, 452, 300, '#e9d5b5');
+    else if (i.Ra > 0.3) texte('Estomac vide : l\'intestin finit le repas', 452, 300, '#e9d5b5');
+    else texte('À jeun : le sucre vient du foie', 452, 300, '#94a3b8');
     if (est.vidange > 0.15 && coupees > 0) texte('Intestin : l\'amidon est coupé en glucose', 452, 470, '#fde68a');
     if (!betaOk) texte('Pancréas : plus de cellules bêta', 470, 392, '#94a3b8');
     if (fx.foieFreine) texte('Metformine : le foie relâche moins de sucre', 170, 296, '#6ee7b7');
@@ -467,10 +468,23 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     void G;
   }
 
+  function objet(c: Contexte, [x, y]: Pt): string | null {
+    const pres = (q: Pt, r = 7) => Math.hypot(q[0] - x, q[1] - y) < r;
+    if (tr && pres(tr.pt, 14)) return tr.type === 'glucose' ? 'Molécule de glucose suivie' : 'Molécule d\'insuline suivie';
+    for (const b of bouchees) if (pres(at(b.c === 'bouche' ? T_BOUCHE : T_STO_INT, b.s), 8)) return 'Bouchée de repas : 10 g de glucides (amidon), pas encore digérés';
+    for (const p of absP) if (p.s >= 0 && pres(at(T_INTESTIN_FOIE, p.s))) return 'Glucose du repas : absorbé par l\'intestin, il part au foie par la veine porte';
+    for (const h of horm) if (pres(at(h.c, h.s))) return h.coul === 'glp1' ? 'GLP-1 (incrétine) : l\'intestin prévient le pancréas qu\'un repas arrive' : 'Glucagon : le pancréas demande au foie de libérer du sucre';
+    for (const p of ins) if (pres(p.c ? at(p.c, p.s) : at(BOUCLES[p.b].c, p.s))) return 'Insuline (la clé) : elle fait entrer le glucose dans les muscles et la graisse';
+    for (const p of sang) if (pres(at(BOUCLES[p.b].c, p.s))) return 'Glucose dans le sang (hexagone doré)';
+    if (Math.hypot(x - 110, y - 300) < 58) return 'Globules rouges : le sucre colle à l\'hémoglobine (HbA1c)';
+    return null;
+  }
+
   const base = creerScene2D(conteneur, opt, {
     W, H, regions: REGIONS, dessiner, avancer, sMax: 5,
     repli: { ilot: 'pancreas' },
     suivi: () => (tr && !tr.fini ? tr.pt : null),
+    objet,
   });
   return {
     ...base,

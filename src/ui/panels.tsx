@@ -16,9 +16,12 @@ import { NOMS_VUES, vuePour, zoneDansVue, type Vue } from './Stage.tsx';
 import { VOYAGES, type Voyage, type VueVoyage } from '../content/voyages.ts';
 import { VUES_PATHO } from '../content/vuesPatho.ts';
 import { KeyRound, Route } from 'lucide-react';
+import { PucesSources } from './Sources.tsx';
+import { SOURCES_FICHE } from '../content/sources.ts';
 
 const NIVEAUX_NOMS: Record<Niveau, string> = { 1: 'Découvrir', 2: 'Comprendre', 3: 'Approfondir' };
 
+const ZONE_SOURCES: Partial<Record<ZoneId, string[]>> = { ilot: ['cabrera'], globules: ['adag'], sang: ['ada', 'tir'], reins: ['sglt2', 'adakdigo'], estomac: ['dallaman'], intestin: ['dallaman'], veinePorte: ['dallaman'], foie: ['bergman'], muscles: ['bergman'], yeux: ['ukpds35', 'ada'], nerfs: ['ukpds35', 'ada'], pieds: ['ada'], coeur: ['leader', 'empareg'] };
 export const ATTEINTES: ZoneId[] = ['yeux', 'nerfs', 'pieds', 'coeur'];
 /** Étapes du voyage du glucose, pour les flèches précédent / suivant d'une zone. */
 const VOYAGE_Z: ZoneId[] = ['estomac', 'intestin', 'veinePorte', 'foie', 'sang', 'pancreas', 'ilot', 'muscles', 'graisse', 'cerveau', 'reins', 'globules'];
@@ -48,55 +51,64 @@ function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre
 }) {
   const [choix, setChoix] = useState<Voyage['id']>('glucose');
   const v = VOYAGES.find((x) => x.id === choix)!;
+  const [etapes, setEtapes] = useState(false);
   return (
-    <div className="space-y-4 fade-in">
+    <div className="space-y-3 fade-in">
       <div>
-        <h2 className="font-display text-xl">Les voyages</h2>
-        <p className="text-sm text-muted mt-1">Suivez le glucose, l'insuline ou la défense contre l'hypoglycémie, d'un organe à l'autre et d'une vue à l'autre. Touchez une étape, ou un organe dans la scène pour voir ses maladies.</p>
+        <h2 className="font-display text-xl">Apprendre en manipulant</h2>
+        <p className="text-[13px] text-muted mt-1">Trois façons de comprendre. Touchez aussi un organe dans la scène pour voir ses maladies.</p>
       </div>
-      <button onClick={onAtelier} className="w-full carte p-3 flex items-center gap-3 text-left hover:border-[#38bdf8]/60">
-        <span className="w-9 h-9 rounded-xl bg-[#38bdf8]/15 text-[#38bdf8] grid place-items-center shrink-0"><KeyRound size={18} /></span>
-        <span className="flex-1"><span className="block text-[14px] font-bold">Atelier : la clé et la porte</span><span className="block text-[12px] text-muted">Réglez vous-même l'insuline, la résistance et l'effort : le glucose entre-t-il dans le muscle ?</span></span>
-        <ArrowRight size={15} className="text-dim" />
-      </button>
-      <div className="carte p-3 space-y-2">
-        <div className="titre-section">Suivre une molécule, en direct</div>
-        <p className="text-[12px] text-muted">La caméra suit une seule molécule dans la vue Corps. Son trajet dépend de l'heure, du patient et du traitement : en type 1, la porte du muscle reste fermée ; après un repas, le foie en garde une partie…</p>
-        <div className="grid grid-cols-2 gap-1.5">
-          <button onClick={() => onSuivre('glucose')} className="rounded-lg bg-miel text-ink font-bold text-[12.5px] py-2 inline-flex items-center justify-center gap-1.5"><span className="w-2.5 h-2.5 rotate-45 bg-ink/70" /> Glucose</button>
-          <button onClick={() => onSuivre('insuline')} className="rounded-lg bg-[#38bdf8] text-ink font-bold text-[12.5px] py-2 inline-flex items-center justify-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-ink/70" /> Insuline</button>
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
+        <button onClick={onAtelier} className="carte p-2.5 flex items-center gap-2.5 text-left hover:border-[#38bdf8]/60">
+          <span className="w-8 h-8 rounded-lg bg-[#38bdf8]/15 text-[#38bdf8] grid place-items-center shrink-0"><KeyRound size={16} /></span>
+          <span className="flex-1 min-w-0"><span className="block text-[13.5px] font-bold">La clé et la porte</span><span className="block text-[11.5px] text-muted leading-snug">Réglez l'insuline : le glucose entre-t-il dans le muscle ?</span></span>
+        </button>
+        <div className="carte p-2.5 space-y-1.5">
+          <div className="flex items-center gap-2.5"><span className="w-8 h-8 rounded-lg bg-miel/15 text-miel grid place-items-center shrink-0"><Route size={16} /></span><span className="min-w-0"><span className="block text-[13.5px] font-bold">Suivre une molécule</span><span className="block text-[11.5px] text-muted leading-snug">Son trajet dépend de l'heure et du patient</span></span></div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={() => onSuivre('glucose')} className="rounded-lg bg-miel text-ink font-bold text-[12px] py-1.5">Glucose</button>
+            <button onClick={() => onSuivre('insuline')} className="rounded-lg bg-[#38bdf8] text-ink font-bold text-[12px] py-1.5">Insuline</button>
+          </div>
         </div>
-        <p className="text-[11px] text-dim">Astuce : arrêtez l'horloge (bouton pause) à l'heure voulue, par exemple juste après le déjeuner, avant de lancer.</p>
+        <div className="carte p-2.5 space-y-1.5">
+          <div className="flex items-center gap-2.5"><span className="w-8 h-8 rounded-lg grid place-items-center shrink-0" style={{ background: `${v.couleur}26`, color: v.couleur }}><Play size={15} fill="currentColor" /></span><span className="min-w-0"><span className="block text-[13.5px] font-bold">Voyage commenté</span><span className="block text-[11.5px] text-muted leading-snug">Étape par étape, avec voix off</span></span></div>
+          <div className="seg w-full [&>button]:flex-1 [&>button]:!px-1" role="tablist" aria-label="Voyage">
+            {VOYAGES.map((x) => <button key={x.id} role="tab" aria-selected={choix === x.id} className={choix === x.id ? 'actif' : ''} onClick={() => setChoix(x.id)}>{x.court}</button>)}
+          </div>
+          <button onClick={() => onVoyage(v.id)} className="w-full rounded-lg text-ink font-bold text-[12.5px] py-1.5" style={{ background: v.couleur }}>Lancer ({v.etapes.length} étapes)</button>
+        </div>
       </div>
-      <div className="titre-section">Voyages commentés</div>
-      <div className="seg w-full [&>button]:flex-1" role="tablist" aria-label="Voyage">
-        {VOYAGES.map((x) => <button key={x.id} role="tab" aria-selected={choix === x.id} className={choix === x.id ? 'actif' : ''} onClick={() => setChoix(x.id)}>{x.court}</button>)}
-      </div>
-      <button onClick={() => onVoyage(v.id)} className="w-full rounded-xl text-ink font-bold text-[13.5px] py-2.5 inline-flex items-center justify-center gap-2" style={{ background: v.couleur }}><Play size={14} fill="currentColor" /> Lancer : {v.titre.toLowerCase()}</button>
-      <ol className="relative border-l border-line ml-2 space-y-1">
-        {v.etapes.map((e, k) => (
-          <li key={k} className="pl-4 relative">
-            <span className="absolute -left-[5px] top-2.5 w-2.5 h-2.5 rounded-full" style={{ background: v.couleur }} />
-            <button onClick={() => onVoirVue(e.z, e.vue, e.site)} className="w-full text-left rounded-lg px-2 py-1.5 hover:bg-card">
-              <div className="text-[13.5px] font-semibold flex items-center justify-between gap-2"><span>{ZONES[e.z].nom}</span><span className="text-[10.5px] text-dim font-normal">vue {NOMS_VUES[e.vue].replace(' 2D', '')}{e.site ? ` · ${e.site}` : ''}</span></div>
-              <div className="text-xs text-muted">{ETAPE_COURTE[v.id][k]}</div>
-            </button>
-          </li>
-        ))}
-      </ol>
+      <button onClick={() => setEtapes((x) => !x)} className="text-xs text-accent font-semibold inline-flex items-center gap-1"><ChevronDown size={14} className={etapes ? 'rotate-180' : ''} /> {etapes ? 'Masquer les étapes' : `Voir les étapes du voyage « ${v.court} »`}</button>
+      {etapes && (
+        <ol className="relative border-l border-line ml-2 space-y-0.5 fade-in">
+          {v.etapes.map((e, k) => (
+            <li key={k} className="pl-4 relative">
+              <span className="absolute -left-[5px] top-2.5 w-2.5 h-2.5 rounded-full" style={{ background: v.couleur }} />
+              <button onClick={() => onVoirVue(e.z, e.vue, e.site)} className="w-full text-left rounded-lg px-2 py-1 hover:bg-card">
+                <div className="text-[13px] font-semibold flex items-center justify-between gap-2"><span>{ZONES[e.z].nom}</span><span className="text-[10.5px] text-dim font-normal">vue {NOMS_VUES[e.vue].replace(' 2D', '')}{e.site ? ` · ${e.site}` : ''}</span></div>
+                <div className="text-xs text-muted">{ETAPE_COURTE[v.id][k]}</div>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+      <details className="carte p-3 group">
+        <summary className="cursor-pointer list-none flex items-center justify-between titre-section"><span className="flex items-center gap-1.5"><Utensils size={13} /> Ce que la personne mange</span><ChevronDown size={14} className="group-open:rotate-180 transition" /></summary>
+        <div className="space-y-2 mt-2">
+          <p className="text-[12px] text-muted">Glucides de chaque repas (en grammes). Repère : une assiette de riz cuit (≈ 200 g) apporte environ 55 g de glucides. Pour une collation ou une marche à une heure précise : bouton « Agir » de la scène.</p>
+          {repas.map((r, k) => (
+            <label key={r.nom} className="block">
+              <span className="text-xs text-muted flex justify-between"><span>{r.nom} ({String(Math.floor(r.h)).padStart(2, '0')} h {String(Math.round((r.h % 1) * 60)).padStart(2, '0')})</span><span className="num text-txt">{r.g} g</span></span>
+              <input type="range" min={0} max={150} step={10} value={r.g} onChange={(e) => onRepas(repas.map((x, j) => (j === k ? { ...x, g: +e.target.value } : x)))} aria-label={`Glucides du ${r.nom}`} />
+            </label>
+          ))}
+        </div>
+      </details>
       <div className="carte p-3">
-        <div className="titre-section mb-2">Là où le sucre en excès abîme</div>
-        <div className="flex gap-2 flex-wrap">{ATTEINTES.map((z) => <button key={z} className="puce" onClick={() => onZone(z)}>{ZONES[z].nom}</button>)}</div>
-      </div>
-      <div className="carte p-3 space-y-2">
-        <div className="titre-section flex items-center gap-1.5"><Utensils size={13} /> Ce que la personne mange</div>
-        <p className="text-[12px] text-muted">Glucides de chaque repas (en grammes). Repère : une assiette de riz cuit (≈ 200 g) apporte environ 55 g de glucides.</p>
-        {repas.map((r, k) => (
-          <label key={r.nom} className="block">
-            <span className="text-xs text-muted flex justify-between"><span>{r.nom} ({String(Math.floor(r.h)).padStart(2, '0')} h {String(Math.round((r.h % 1) * 60)).padStart(2, '0')})</span><span className="num text-txt">{r.g} g</span></span>
-            <input type="range" min={0} max={150} step={10} value={r.g} onChange={(e) => onRepas(repas.map((x, j) => (j === k ? { ...x, g: +e.target.value } : x)))} aria-label={`Glucides du ${r.nom}`} />
-          </label>
-        ))}
+        <div className="titre-section mb-2">Les organes du voyage</div>
+        <div className="flex gap-1.5 flex-wrap">{(['estomac', 'intestin', 'foie', 'pancreas', 'ilot', 'muscles', 'graisse', 'cerveau', 'reins', 'globules'] as ZoneId[]).map((z) => <button key={z} className="puce" onClick={() => onZone(z)}>{ZONES[z].nom}</button>)}</div>
+        <div className="titre-section mt-3 mb-2">Là où le sucre en excès abîme</div>
+        <div className="flex gap-1.5 flex-wrap">{ATTEINTES.map((z) => <button key={z} className="puce" onClick={() => onZone(z)}>{ZONES[z].nom}</button>)}</div>
       </div>
     </div>
   );
@@ -109,9 +121,9 @@ const ETAPE_COURTE: Record<Voyage['id'], string[]> = {
   defense: ['Le sucre descend sous 0,70 g/L', 'Les cellules bêta s\'arrêtent (sauf sous sulfamide)', 'Les cellules alpha libèrent le glucagon', 'Le foie vide ses réserves', 'Le cerveau souffre en premier', 'Règle des 15 : 15 g de sucre'],
 };
 
-export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue, onSuivre, onAtelier }: {
+export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue, onSuivre, onAtelier, onSource }: {
   zone: ZoneId | null; niveau: Niveau; vue: Vue; actives: PathoActive[]; repas: Repas[]; onRepas: (r: Repas[]) => void;
-  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void;
+  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void; onSource?: (id: string) => void;
   onZone: (z: ZoneId | null) => void; onTogglePatho: (id: string) => void; onVue: (v: Vue) => void; onVoirPatho: (id: string) => void;
 }) {
   if (!zone) {
@@ -147,6 +159,7 @@ export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, on
         <div className="titre-section mb-1.5">Comment ça marche</div>
         <Texte3 textes={z.role} niveau={niveau} />
         {niveau >= 2 && z.chiffres && <div className="mt-2.5 text-xs text-muted flex items-center gap-1.5"><Info size={13} /> {z.chiffres}</div>}
+        {onSource && ZONE_SOURCES[zone] && <div className="mt-2.5"><PucesSources ids={ZONE_SOURCES[zone]} onSource={onSource} /></div>}
       </div>
       {classes.length > 0 && (
         <div className="carte p-3">
@@ -182,7 +195,8 @@ export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, on
 // ─────────────────────────── Maladies ───────────────────────────
 
 export const SCENARIOS_RAPIDES: { nom: string; actives: PathoActive[] }[] = [
-  { nom: 'Type 2 découvert au bilan', actives: [{ id: 't2', s: 0.4 }] },
+  { nom: 'HGPO chez un sujet sain', actives: [{ id: 'hgpo', s: 0.7 }] },
+  { nom: 'HGPO : intolérance au glucose', actives: [{ id: 't2', s: 0.4 }, { id: 'hgpo', s: 0.7 }] },
   { nom: 'Type 2 installé', actives: [{ id: 't2', s: 0.7 }] },
   { nom: 'Type 1', actives: [{ id: 't1', s: 0.7 }] },
   { nom: 'Prédiabète', actives: [{ id: 'prediabete', s: 0.7 }] },
@@ -191,7 +205,7 @@ export const SCENARIOS_RAPIDES: { nom: string; actives: PathoActive[] }[] = [
 ];
 
 function ordreFamilles(vue: Vue, zone: ZoneId | null): Famille[] {
-  const tout: Famille[] = ['diabetes', 'aigues', 'situations', 'complications'];
+  const tout: Famille[] = ['diabetes', 'examens', 'aigues', 'situations', 'complications'];
   let tete: Famille[] = [];
   if (zone && ATTEINTES.includes(zone)) tete = ['complications'];
   else if (zone === 'cerveau') tete = ['aigues'];
@@ -207,6 +221,7 @@ export function PanneauMaladies(props: {
   onSequence: () => void; onComparer: () => void; onResucrage: () => void;
   onVoir: (v: Vue) => void; onPresentation: (id: string) => void;
   onCas: (actives: PathoActive[], traitement: Traitement, zone: ZoneId | null) => void;
+  onSource: (id: string) => void;
 }) {
   const [quiz, setQuiz] = useState(false);
   if (quiz) return <Quiz onFermer={() => setQuiz(false)} onSimuler={props.onCas} onEffet={props.onSequence} />;
@@ -245,7 +260,8 @@ export function PanneauMaladies(props: {
                 );
               })}
             </div>
-            <div className="titre-section mt-3 mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul></section>
+            <div className="titre-section mt-3 mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul>
+            <div className="mt-3"><PucesSources ids={SOURCES_FICHE[f.id]} onSource={props.onSource} /></div></section>
           {f.id === 'hypo' && actives.some((a) => a.id === 'hypo') && (
             <button onClick={props.onResucrage} className="w-full rounded-xl bg-miel text-ink font-bold text-[13.5px] py-2.5 inline-flex items-center justify-center gap-2"><Candy size={16} /> Resucrer : 15 g de sucre au moment du malaise</button>
           )}
@@ -323,9 +339,9 @@ export function PanneauMaladies(props: {
 
 // ─────────────────────────── Traitement intégré à la fiche ───────────────────────────
 
-function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, terrain, onDose, onRemplacer, onSequence, onComparer }: {
+function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, terrain, onDose, onRemplacer, onSequence, onComparer, onSource }: {
   patho: Pathologie; niveau: Niveau; actives: PathoActive[]; etat: Etat; etatSans: Etat; traitement: Traitement; terrain: Terrain;
-  onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void; onSequence: () => void; onComparer: () => void;
+  onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void; onSequence: () => void; onComparer: () => void; onSource: (id: string) => void;
 }) {
   const [ouverte, setOuverte] = useState<ClasseId | null>(null);
   const [autres, setAutres] = useState(false);
@@ -364,6 +380,7 @@ function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, te
             <div><span className="font-semibold">Effets indésirables : </span><span className="text-muted">{c.indesirables.join(' · ')}</span></div>
             <div><span className="font-semibold">Précautions : </span><span className="text-muted">{c.precautions}</span></div>
             <div className="rounded-lg bg-warn/8 border border-warn/25 p-2"><span className="font-semibold text-warn">À l'arrêt : </span>{c.arret}</div>
+            <PucesSources ids={SOURCES_FICHE[c.id]} onSource={onSource} />
           </div>
         )}
       </div>

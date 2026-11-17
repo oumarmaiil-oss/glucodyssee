@@ -91,10 +91,10 @@ export const CLASSES: Classe[] = [
     id: 'isglt2', nom: 'Inhibiteur de SGLT2 (gliflozine)', court: 'iSGLT2', exemples: 'dapagliflozine, empagliflozine', groupe: 'comprimes', couleur: '#fbbf24', cible: 'Reins (tubule proximal)', zone: 'reins',
     mecanisme: {
       1: 'Il fait éliminer le sucre en trop par les urines. Il protège aussi le cœur et les reins, même chez les non-diabétiques.',
-      2: 'Il bloque SGLT2, le transporteur qui récupère le glucose filtré par le rein : le seuil rénal baisse et 50 à 100 g de glucose partent dans les urines chaque jour, sans insuline.',
+      2: 'Il bloque SGLT2, le transporteur qui récupère le glucose filtré par le rein : le seuil rénal baisse et environ 40 à 100 g de glucose partent dans les urines chaque jour, sans insuline.',
       3: 'Baisse de l\'HbA1c d\'environ 0,5 à 0,8 point, moindre si le rein est altéré. Bénéfice démontré sur l\'insuffisance cardiaque et la maladie rénale indépendamment de l\'HbA1c (EMPA-REG, DAPA-HF, DAPA-CKD, CREDENCE). Perte de poids et légère baisse de la PA.',
     },
-    effetVisible: 'Le rein laisse passer le sucre dans les urines dès 0,70 à 0,90 g/L au lieu de 1,80 g/L.',
+    effetVisible: 'Le rein laisse passer le sucre dans les urines dès 0,70 à 0,75 g/L environ au lieu de 1,80 g/L.',
     indesirables: ['Mycoses génitales (hygiène)', 'Déshydratation, hypotension : bien boire', 'Acidocétose rare, parfois avec une glycémie presque normale'],
     precautions: 'Rein : moins efficace sur la glycémie quand le DFG baisse, mais garde la protection rénale (débutable jusqu\'à un DFG de 20). Arrêt temporaire en cas de maladie aiguë, de jeûne prolongé ou d\'opération. Ramadan : bien s\'hydrater entre ndogu et sahur.',
     arret: 'La glycémie remonte ; la protection du cœur et des reins disparaît.',
