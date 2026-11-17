@@ -3,8 +3,10 @@
  * mélangées comme chez l'humain (≈ 55 / 35 / 10 %). Les granules sortent au rythme calculé par le moteur :
  * sécrétion d'insuline et indice de glucagon de l'instant. Type 1 : lymphocytes et cellules bêta détruites ;
  * type 2 : cellules bêta qui s'éteignent avec les années ; sulfamide : canaux K-ATP fermés.
+ * Dans le capillaire, le sang circule (globules rouges) : il apporte le glucose du repas et emporte l'insuline (clés)
+ * et le glucagon (triangles) vers le foie.
  */
-import { clamp, COUL, creerScene2D, hexagone, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
+import { clamp, COUL, cle, creerScene2D, hexagone, triangle, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
 import type { Instant } from '../core/clock.ts';
 import { effetsVisibles } from '../core/effets.ts';
 
@@ -43,12 +45,12 @@ export function creerIlot2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     const beta = e.terrain.beta;
     const vivantes = CELLULES.filter((x) => x.type === 'beta' && x.rang < beta);
     const alphas = CELLULES.filter((x) => x.type === 'alpha');
-    accI += clamp(i.S, 0, 40) * 2.2 * dt;
+    accI += (clamp(i.S, 0, 40) * 2.2 + 1.2) * dt;
     while (accI >= 1 && vivantes.length) {
       accI -= 1; const s = vivantes[(Math.random() * vivantes.length) | 0];
       gran.push({ x: s.x, y: s.y, vx: (Math.random() - 0.5) * 20, vy: (CY - 10 - s.y) * 0.9, type: 'ins', vie: 2.2 });
     }
-    accG += clamp(i.glucagon - 0.45, 0, 3) * 7 * dt;
+    accG += (clamp(i.glucagon - 0.45, 0, 3) * 7 + 0.6) * dt;
     while (accG >= 1) {
       accG -= 1; const s = alphas[(Math.random() * alphas.length) | 0];
       gran.push({ x: s.x, y: s.y, vx: (Math.random() - 0.5) * 20, vy: (CY - 10 - s.y) * 0.9, type: 'glu', vie: 2.2 });
@@ -78,7 +80,12 @@ export function creerIlot2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     // Capillaire traversant l'îlot.
     g.fillStyle = 'rgba(201,66,79,.35)'; g.fillRect(0, CY - 26, W, 32);
     g.strokeStyle = 'rgba(201,66,79,.7)'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, CY - 26); g.lineTo(W, CY - 26); g.moveTo(0, CY + 6); g.lineTo(W, CY + 6); g.stroke();
+    g.save(); g.strokeStyle = 'rgba(255,214,214,.18)'; g.lineWidth = 2; g.setLineDash([14, 12]); g.lineDashOffset = -temps * 120;
+    g.beginPath(); g.moveTo(0, CY - 10); g.lineTo(W, CY - 10); g.stroke(); g.restore();
+    for (let k = 0; k < 9; k++) { const x = ((k * 79 + temps * 120) % (W + 40)) - 20, y = CY - 18 + ((k * 7) % 16); g.fillStyle = 'rgba(201,66,79,.9)'; g.beginPath(); g.ellipse(x, y, 9, 5.5, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(120,20,32,.5)'; g.beginPath(); g.ellipse(x, y, 4, 2.2, 0, 0, 7); g.fill(); }
     for (const p of glucose) hexagone(g, p.x, p.y, 3);
+    texte('Sang qui arrive (glucose du repas) →', 120, CY + 22, '#fecaca', 10.5);
+    texte('→ vers le foie : insuline et glucagon', W - 120, CY + 22, '#fecaca', 10.5);
 
     // Cellules.
     for (const s of CELLULES) {
@@ -107,14 +114,16 @@ export function creerIlot2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     // Incrétines (GLP-1) qui arrivent sur les cellules bêta.
     if (fx.incretines) for (let k = 0; k < 8; k++) { const s = (temps * 0.4 + k / 8) % 1; const x = 20 + s * 160, y = 120 + k * 46; g.fillStyle = '#f472b6'; g.beginPath(); g.moveTo(x, y); g.lineTo(x - 8, y - 5); g.lineTo(x - 8, y + 5); g.closePath(); g.fill(); }
     // Granules.
-    for (const p of gran) { g.fillStyle = p.type === 'ins' ? COUL.insuline : COUL.glucagon; g.beginPath(); g.arc(p.x, p.y, 2.6, 0, 7); g.fill(); }
+    for (const p of gran) { if (p.type === 'ins') cle(g, p.x, p.y, 4.2, 0); else triangle(g, p.x, p.y, 4.6); }
 
     // Messages.
     const nBeta = CELLULES.filter((x) => x.type === 'beta').length, nViv = CELLULES.filter((x) => x.type === 'beta' && x.rang < beta).length;
     if (t1) texte('Type 1 : les lymphocytes ont détruit les cellules bêta', CX, 40, '#fca5a5');
     else if (beta < 0.9) texte(`Cellules bêta qui fonctionnent : ${Math.round((nViv / nBeta) * 100)} %`, CX, 40, '#fde68a');
     if (i.G < 70) texte('Sucre bas : les cellules alpha libèrent le glucagon', CX, H - 28, '#d8b4fe');
+    else if (i.Ra > 0.3 && i.S > 2.5) texte('Repas en digestion : le glucose arrive, les cellules bêta libèrent l\'insuline', CX, H - 28, '#7dd3fc');
     else if (i.S > 3) texte('Sucre haut : les cellules bêta libèrent l\'insuline', CX, H - 28, '#7dd3fc');
+    else if (!t1) texte('À jeun : un peu d\'insuline en continu, un peu de glucagon', CX, H - 28, '#94a3b8');
     if (fx.pancreasForce) texte('Sulfamide : canaux K-ATP fermés, l\'insuline coule même si le sucre est bas', CX, 72, '#6ee7b7');
     if (fx.incretines) texte('Incrétines (GLP-1) : plus d\'insuline et moins de glucagon quand le sucre monte', CX, 72, '#6ee7b7');
     if (fx.sansEffet) texte('Plus de cellules bêta : sulfamide et iDPP-4 n\'agissent pas', CX, 72, '#fbbf24');

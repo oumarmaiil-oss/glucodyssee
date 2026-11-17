@@ -101,6 +101,8 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
   const etatRef = useRef(etat);
   const capteurRef = useRef<HTMLSpanElement>(null);
   const pastilleRef = useRef<HTMLSpanElement>(null);
+  // Îlot : ce qu'il libère à l'instant (barres insuline / glucagon et raison), mis à jour sans re-rendu React.
+  const secrIns = useRef<HTMLSpanElement>(null), secrGlu = useRef<HTMLSpanElement>(null), secrTxt = useRef<HTMLDivElement>(null);
   const [survol, setSurvol] = useState<ZoneId | null>(null);
   const [bulle, setBulle] = useState<{ t: string; x: number; y: number } | null>(null);
   useEffect(() => { setSurvol(null); }, [vue]);
@@ -247,6 +249,17 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
       if (captureRef.current) { const c = hote.current?.querySelector('canvas'); if (c) captureRef.current(c); }
       son.tick(i, dt);
       tBilan += dt;
+      if (tBilan > 0.25 && (vueRef.current === 'ilot' || vueRef.current === 'ilot3d') && secrIns.current && secrGlu.current && secrTxt.current) {
+        const b = etatRef.current?.terrain.beta ?? 1;
+        const nI = Math.max(0, Math.min(1, i.S / 8)), nG = Math.max(0, Math.min(1, (i.glucagon - 0.4) / 1.8));
+        secrIns.current.style.width = `${Math.round(4 + nI * 96)}%`; secrGlu.current.style.width = `${Math.round(4 + nG * 96)}%`;
+        secrTxt.current.textContent = b < 0.05 ? 'Plus de cellules bêta : aucune insuline libérée'
+          : i.G < 70 ? 'Sucre bas : le glucagon prend le relais'
+          : i.Ra > 0.3 && i.S > 2.5 ? 'Repas en digestion : le glucose arrive, l\'insuline monte'
+          : i.S > 3 ? 'Après le repas : l\'insuline reste haute'
+          : i.Ra > 0.3 ? 'Fin de digestion : le sucre redescend, l\'insuline aussi'
+          : 'À jeun : un peu d\'insuline en continu, le glucagon soutient le foie';
+      }
       if (tBilan > 0.25 && vueRef.current === 'corps') { tBilan = 0; setBilan({ ra: i.Ra * 4.2, foie: i.PGE * 4.2, cer: i.Ucer * 4.2, mus: i.Uins * 4.2, eff: i.Ueff * 4.2, uri: i.Urein * 4.2, dG: i.dG }); }
       const fleche = i.dG > 15 ? '↗' : i.dG < -15 ? '↘' : '→';
       const texte = `${fmtHeure(i.heure)} · ${(i.G / 100).toFixed(2).replace('.', ',')} g/L ${fleche}`;
@@ -403,6 +416,12 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" /> Bêta : insuline</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#c084fc]" /> Alpha : glucagon</div>
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#a3acc0]" /> Delta</div>
+          <div className="pt-1 mt-1 border-t border-line w-[150px] lg:w-[180px] space-y-1">
+            <div className="text-[9.5px] uppercase tracking-wider text-dim">Libéré dans le sang</div>
+            <div className="flex items-center gap-1.5"><span className="w-12 shrink-0 text-[#7dd3fc]">Insuline</span><span className="flex-1 h-1.5 rounded-full bg-card2 overflow-hidden"><span ref={secrIns} className="block h-full bg-[#38bdf8] transition-[width] duration-300" style={{ width: '10%' }} /></span></div>
+            <div className="flex items-center gap-1.5"><span className="w-12 shrink-0 text-[#d8b4fe]">Glucagon</span><span className="flex-1 h-1.5 rounded-full bg-card2 overflow-hidden"><span ref={secrGlu} className="block h-full bg-[#c084fc] transition-[width] duration-300" style={{ width: '10%' }} /></span></div>
+            <div ref={secrTxt} className="text-[10.5px] leading-snug text-muted">—</div>
+          </div>
         </div>
       )}
 

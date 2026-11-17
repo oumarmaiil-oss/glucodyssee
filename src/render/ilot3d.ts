@@ -1,7 +1,8 @@
 /**
  * Îlot de Langerhans en 3D (three.js, chargé à la demande) : un amas de cellules bêta (bleues),
  * alpha (violettes) et delta (grises), traversé par des capillaires. Les granules d'insuline et de glucagon
- * s'échappent au rythme du moteur et partent dans le sang des capillaires, où circulent les globules rouges.
+ * s'échappent au rythme du moteur, rejoignent le capillaire le plus proche et sont emportées par le sang (globules
+ * rouges), avec le glucose (points dorés) qu'il apporte.
  * L'îlot tourne lentement tout seul ; il s'arrête quand on le manipule. Glisser pour faire tourner, pincer ou molette pour zoomer.
  */
 import * as THREE from 'three';
@@ -56,13 +57,27 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     m.position.copy(c.p); m.scale.setScalar(0.85 + alea() * 0.3); scene.add(m); return m;
   });
   // Capillaires.
-  const matCap = new THREE.MeshStandardMaterial({ color: 0xc9424f, roughness: 0.5, transparent: true, opacity: 0.8 });
+  const matCap = new THREE.MeshStandardMaterial({ color: 0xc9424f, roughness: 0.5, transparent: true, opacity: 0.42, depthWrite: false }); // paroi translucide : on voit le sang et ce qu'il emporte
   const capillaires = [
     new THREE.CatmullRomCurve3([new THREE.Vector3(-4, 0.2, 0), new THREE.Vector3(-1, -0.3, 0.4), new THREE.Vector3(1, 0.3, -0.3), new THREE.Vector3(4, -0.1, 0)]),
     new THREE.CatmullRomCurve3([new THREE.Vector3(0, -4, 0.5), new THREE.Vector3(0.3, -1, -0.5), new THREE.Vector3(-0.4, 1, 0.3), new THREE.Vector3(0.2, 4, 0)]),
   ];
   for (const cv of capillaires) scene.add(new THREE.Mesh(new THREE.TubeGeometry(cv, 40, 0.16, 8, false), matCap));
   // Globules rouges qui circulent dans les capillaires (un seul maillage instancié : léger).
+  // Points régulièrement espacés le long des capillaires (pour suivre le sang sans recalcul coûteux).
+  const N_ECH = 200;
+  const echantillons = capillaires.map((cv) => cv.getSpacedPoints(N_ECH - 1));
+  const surCap = (c: number, u: number, out: THREE.Vector3) => {
+    const f = Math.min(N_ECH - 1.001, Math.max(0, u * (N_ECH - 1))), k = Math.floor(f);
+    return out.copy(echantillons[c][k]).lerp(echantillons[c][k + 1], f - k);
+  };
+  // Pour chaque cellule : le point de capillaire le plus proche, où ses grains rejoignent le sang.
+  const proche = cels.map((cel) => {
+    let best = { c: 0, u: 0, d: Infinity };
+    echantillons.forEach((pts, c) => pts.forEach((q, k) => { const d = q.distanceToSquared(cel.p); if (d < best.d) best = { c, u: k / (N_ECH - 1), d }; }));
+    return best;
+  });
+  const VITESSE_SANG = 0.09; // fraction de capillaire parcourue par seconde
   const N_GLOB = 14;
   const geoGlob = new THREE.SphereGeometry(0.13, 10, 8);
   const globules = new THREE.InstancedMesh(geoGlob, new THREE.MeshStandardMaterial({ color: 0xe0525f, roughness: 0.35, emissive: 0x5a0f18, emissiveIntensity: 0.5 }), N_GLOB * capillaires.length);
@@ -74,11 +89,12 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
   // Granules (points).
   const N_GR = leger ? 260 : 500;
   const pos = new Float32Array(N_GR * 3), col = new Float32Array(N_GR * 3);
-  const gr = Array.from({ length: N_GR }, () => ({ vie: 0, v: new THREE.Vector3(), type: 0 }));
+  // Grain : il sort de la cellule (phase 0) puis est emporté par le sang dans le capillaire (phase 1).
+  const gr = Array.from({ length: N_GR }, () => ({ vie: 0, type: 0, phase: 0, t: 0, dur: 1, c: 0, u: 0, de: new THREE.Vector3(), vers: new THREE.Vector3(), dec: new THREE.Vector3() }));
   const geoG = new THREE.BufferGeometry();
   geoG.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geoG.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const points = new THREE.Points(geoG, new THREE.PointsMaterial({ size: 0.15, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false }));
-  scene.add(points);
+  const points = new THREE.Points(geoG, new THREE.PointsMaterial({ size: 0.2, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false }));
+  scene.add(points); points.renderOrder = 2;
   const cIns = new THREE.Color(0x7dd3fc), cGlu = new THREE.Color(0xd8b4fe);
 
   let etat: Etat | null = null, accI = 0, accG = 0, temps = 0;
@@ -88,14 +104,22 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix();
   };
   const ro = new ResizeObserver(redim); ro.observe(conteneur);
-  const emettre = (src: THREE.Vector3, type: number) => {
+  const emettre = (idx: number, type: number) => {
     const k = gr.findIndex((x) => x.vie <= 0); if (k < 0) return;
-    const dir = src.clone().add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.6)).normalize();
-    gr[k].vie = 2.6; gr[k].type = type; gr[k].v.copy(dir).multiplyScalar(0.8 + Math.random() * 0.5);
-    const dep = src.clone().add(dir.clone().multiplyScalar(0.34));
-    pos[k * 3] = dep.x; pos[k * 3 + 1] = dep.y; pos[k * 3 + 2] = dep.z;
+    const cel = cels[idx], pr = proche[idx], g0 = gr[k];
+    g0.vie = 1; g0.type = type; g0.phase = 0; g0.t = 0; g0.dur = 0.7 + Math.random() * 0.6; g0.c = pr.c; g0.u = pr.u;
+    g0.dec.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(0.2);
+    g0.de.copy(cel.p).add(g0.dec.clone().multiplyScalar(1.5)); surCap(pr.c, pr.u, g0.vers).add(g0.dec);
+    pos[k * 3] = g0.de.x; pos[k * 3 + 1] = g0.de.y; pos[k * 3 + 2] = g0.de.z;
     const c = type ? cGlu : cIns; col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b;
   };
+  // Glucose apporté par le sang (points dorés), plus nombreux quand la glycémie monte.
+  const N_GLC = 90;
+  const posGlc = new Float32Array(N_GLC * 3);
+  const geoGlc = new THREE.BufferGeometry(); geoGlc.setAttribute('position', new THREE.BufferAttribute(posGlc, 3));
+  const ptsGlc = new THREE.Points(geoGlc, new THREE.PointsMaterial({ size: 0.16, color: 0xf5b027, transparent: true, opacity: 0.95, depthWrite: false }));
+  scene.add(ptsGlc); ptsGlc.renderOrder = 2;
+  const vTmp = new THREE.Vector3();
 
   return {
     frame(i: Instant, dt: number) {
@@ -112,19 +136,33 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
       const vivantes = cels.filter((c) => c.type === 'beta' && c.rang < beta), alphas = cels.filter((c) => c.type === 'alpha');
       // Sécrétion : au rythme du moteur, avec la part basale (continue) toujours visible tant qu'il reste des cellules bêta.
       accI += (Math.min(40, i.S) * 3 + 5) * dt; accG += (Math.max(0, i.glucagon - 0.45) * 9 + 1.5) * dt;
-      while (accI >= 1 && vivantes.length) { accI -= 1; emettre(vivantes[(Math.random() * vivantes.length) | 0].p, 0); }
-      while (accG >= 1) { accG -= 1; emettre(alphas[(Math.random() * alphas.length) | 0].p, 1); }
+      while (accI >= 1 && vivantes.length) { accI -= 1; emettre(cels.indexOf(vivantes[(Math.random() * vivantes.length) | 0]), 0); }
+      while (accG >= 1) { accG -= 1; emettre(cels.indexOf(alphas[(Math.random() * alphas.length) | 0]), 1); }
       if (accI > 6) accI = 6;
       for (let k = 0; k < N_GR; k++) {
         const p = gr[k];
         if (p.vie <= 0) { pos[k * 3 + 1] = 999; continue; }
-        p.vie -= dt; pos[k * 3] += p.v.x * dt; pos[k * 3 + 1] += p.v.y * dt; pos[k * 3 + 2] += p.v.z * dt;
+        if (p.phase === 0) {
+          p.t = Math.min(1, p.t + dt / p.dur); const e2 = p.t * p.t * (3 - 2 * p.t);
+          vTmp.copy(p.de).lerp(p.vers, e2); if (p.t >= 1) p.phase = 1;
+        } else {
+          p.u += VITESSE_SANG * dt; if (p.u >= 1) { p.vie = 0; pos[k * 3 + 1] = 999; continue; }
+          surCap(p.c, p.u, vTmp).add(p.dec);
+        }
+        pos[k * 3] = vTmp.x; pos[k * 3 + 1] = vTmp.y; pos[k * 3 + 2] = vTmp.z;
       }
+      const nGlc = Math.min(N_GLC, Math.round(Math.max(30, Math.min(450, i.G)) / 5));
+      for (let k = 0; k < N_GLC; k++) {
+        if (k >= nGlc) { posGlc[k * 3 + 1] = 999; continue; }
+        const c = k % capillaires.length, u = ((k * 0.6180339) + temps * VITESSE_SANG) % 1;
+        surCap(c, u, vTmp); posGlc[k * 3] = vTmp.x + Math.sin(k * 3.1) * 0.07; posGlc[k * 3 + 1] = vTmp.y + Math.cos(k * 1.7) * 0.07; posGlc[k * 3 + 2] = vTmp.z + Math.sin(k * 2.3) * 0.07;
+      }
+      geoGlc.attributes.position.needsUpdate = true;
       geoG.attributes.position.needsUpdate = true; geoG.attributes.color.needsUpdate = true;
-      capillaires.forEach((cv, c) => {
+      capillaires.forEach((_, c) => {
         for (let k = 0; k < N_GLOB; k++) {
-          const u = (temps * 0.09 + k / N_GLOB + c * 0.37) % 1;
-          cv.getPointAt(u, pGlob); pGlob.y += Math.sin(k * 2.3) * 0.05;
+          const u = (temps * VITESSE_SANG + k / N_GLOB + c * 0.37) % 1;
+          surCap(c, u, pGlob); pGlob.y += Math.sin(k * 2.3) * 0.05;
           qGlob.setFromAxisAngle(eGlob.set(0, 1, 0), temps * 2 + k); eGlob.set(1, 0.55, 1);
           mGlob.compose(pGlob, qGlob, eGlob); globules.setMatrixAt(c * N_GLOB + k, mGlob);
         }
@@ -140,6 +178,6 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     setDefinition(pr) { defImposee = pr; renderer.setPixelRatio(pr ?? Math.min(window.devicePixelRatio || 1, leger ? 1.25 : 2)); redim(); },
     zoomer(f) { camera.position.multiplyScalar(1 / f); const d = camera.position.length(); if (d < 4) camera.position.setLength(4); if (d > 16) camera.position.setLength(16); },
     setMarges() { /* la 3D occupe toute la scène */ },
-    dispose() { clearTimeout(repriseRotation); ro.disconnect(); controls.dispose(); renderer.dispose(); geo.dispose(); geoG.dispose(); geoGlob.dispose(); renderer.domElement.remove(); },
+    dispose() { clearTimeout(repriseRotation); ro.disconnect(); controls.dispose(); renderer.dispose(); geo.dispose(); geoG.dispose(); geoGlob.dispose(); geoGlc.dispose(); renderer.domElement.remove(); },
   };
 }
