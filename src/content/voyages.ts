@@ -7,7 +7,7 @@ import type { Etat, Niveau, Terrain } from '../core/types.ts';
 import { repasDuJour } from '../core/engine.ts';
 import type { ZoneId } from './zones.ts';
 
-export type VueVoyage = 'corps' | 'ilot' | 'cellule' | 'rein' | 'courbe';
+export type VueVoyage = 'corps' | 'ilot' | 'cellule' | 'rein' | 'courbe' | 'vaisseau';
 
 export interface EtapeVoyage {
   z: ZoneId;

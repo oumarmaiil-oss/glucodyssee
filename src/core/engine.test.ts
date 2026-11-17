@@ -141,6 +141,6 @@ test('voyages et vues : chaque étape et chaque maladie ont un texte valable, qu
   for (const p of PATHOLOGIES) {
     const vp = VUES_PATHO[p.id];
     assert.ok(vp && Object.keys(vp.vues).length > 0, `${p.id} : vues manquantes`);
-    for (const k of Object.keys(vp.vues)) assert.ok(['corps', 'ilot', 'cellule', 'rein', 'courbe'].includes(k));
+    for (const k of Object.keys(vp.vues)) assert.ok(['corps', 'ilot', 'cellule', 'rein', 'courbe', 'vaisseau'].includes(k));
   }
 });

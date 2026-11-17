@@ -166,7 +166,7 @@ export const PATHOLOGIES: Pathologie[] = [
   },
   {
     id: 'effort', nom: 'Activité physique', court: 'Effort', famille: 'situations', zones: ['muscles', 'graisse', 'cerveau'], niveauMin: 1,
-    appliquer: (t) => { t.efforts = [{ h: 17, duree: 45, intensite: 0.6 }]; },
+    appliquer: (t) => { t.efforts = [...t.efforts, { h: 17, duree: 45, intensite: 0.6 }]; },
     texte: {
       1: 'Une marche rapide de 45 minutes en fin d\'après-midi. Les muscles consomment du sucre, même sans insuline, et deviennent plus sensibles à l\'insuline pendant plusieurs heures.',
       2: 'La contraction fait entrer le glucose dans le muscle par une voie indépendante de l\'insuline. C\'est un pilier du traitement du type 2. Sous insuline ou sulfamide, prévoir une collation ou réduire la dose.',

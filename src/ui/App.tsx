@@ -7,7 +7,7 @@ import { BandeauInstaller, FenetreInstaller } from './Installer.tsx';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
 import { calculer, evoluer, indexAn, REPAS_JOUR, TERRAIN_SAIN } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
-import type { ClasseId, Niveau, Repas, Traitement } from '../core/types.ts';
+import type { ClasseId, Effort, Niveau, Repas, Traitement } from '../core/types.ts';
 import type { ZoneId } from '../content/zones.ts';
 import { construireTerrain, PATHO_PAR_ID, TYPES_DIABETE, type PathoActive } from '../content/pathologies.ts';
 import { CLASSE_PAR_ID } from '../content/classes.ts';
@@ -52,9 +52,11 @@ export default function App() {
   const [zone, setZone] = useState<ZoneId | null>(null);
   const [actives, setActives] = useState<PathoActive[]>([]);
   const [focusPatho, setFocusPatho] = useState<string | null>(null);
+  const [lectLoc, setLectLoc] = useState(false);
   const [traitement, setTraitement] = useState<Traitement>({});
   const [repas, setRepas] = useState<Repas[]>(REPAS_JOUR);
   const [collations, setCollations] = useState<Repas[]>([]);
+  const [effortsPerso, setEffortsPerso] = useState<Effort[]>([]);
   const [vueEvo, setVueEvo] = useState<VueEvolution | null>(null);
   const [sonOn, setSonOn] = useState(false);
   const [ralenti, setRalenti] = useState(false);
@@ -74,7 +76,7 @@ export default function App() {
     return () => { window.removeEventListener('gluco-maj', surMaj); window.removeEventListener('beforeinstallprompt', surInstall); };
   }, []);
 
-  const terrain = useMemo(() => construireTerrain({ ...TERRAIN_SAIN, repas, collations }, actives), [actives, repas, collations]);
+  const terrain = useMemo(() => construireTerrain({ ...TERRAIN_SAIN, repas, collations, efforts: effortsPerso }, actives), [actives, repas, collations, effortsPerso]);
   const etatSans = useMemo(() => calculer(terrain, {}), [terrain]);
   const etatAuj = useMemo(() => calculer(terrain, traitement), [terrain, traitement]);
   const evoScene = useMemo(() => {
@@ -204,15 +206,31 @@ export default function App() {
     setVue('courbe'); setAllerA({ minute: Math.max(0, m - 30), n: Date.now() });
   };
 
+  // Agir en direct : collation, repas imprévu ou marche à l'heure affichée dans la scène (avec « Annuler »).
+  const agir = (a: 'sucre' | 'collation' | 'repas' | 'marche' | 'effacer', minute: number) => {
+    const h = Math.round((minute / 60) * 12) / 12;
+    const hh = `${String(Math.floor(h)).padStart(2, '0')} h ${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+    const avant = instantane('');
+    if (a === 'effacer') { setCollations([]); setEffortsPerso([]); setAnnulation({ ...avant, message: 'Ajouts de la journée retirés.' }); return; }
+    if (a === 'marche') setEffortsPerso((x) => [...x, { h, duree: 30, intensite: 0.6 }]);
+    else {
+      const ajout: Repas = a === 'sucre' ? { h, g: 15, nom: 'Resucrage (15 g)' } : a === 'collation' ? { h, g: 30, nom: 'Collation (30 g)' } : { h, g: 60, nom: 'Repas imprévu (60 g)' };
+      setCollations((c) => [...c, ajout]);
+    }
+    const quoi = { sucre: '15 g de sucre', collation: 'une collation de 30 g', repas: 'un repas imprévu de 60 g (sans insuline rapide)', marche: '30 minutes de marche' }[a];
+    setAnnulation({ ...avant, message: `Ajouté à ${hh} : ${quoi}.` });
+    setAllerA({ minute: Math.max(0, minute - 20), n: Date.now() });
+  };
+
   // Réinitialiser : tout revient à l'état de départ, avec « Annuler » pendant quelques secondes.
   const [cleScene, setCleScene] = useState(0);
-  const [annulation, setAnnulation] = useState<{ message: string; vue: Vue; onglet: Onglet; zone: ZoneId | null; actives: PathoActive[]; focusPatho: string | null; traitement: Traitement; vueEvo: VueEvolution | null; repas: Repas[]; collations: Repas[] } | null>(null);
+  const [annulation, setAnnulation] = useState<{ message: string; vue: Vue; onglet: Onglet; zone: ZoneId | null; actives: PathoActive[]; focusPatho: string | null; traitement: Traitement; vueEvo: VueEvolution | null; repas: Repas[]; collations: Repas[]; effortsPerso: Effort[] } | null>(null);
   useEffect(() => { if (!annulation) return; const t = setTimeout(() => setAnnulation(null), 8000); return () => clearTimeout(t); }, [annulation]);
-  const instantane = (message: string) => ({ message, vue, onglet, zone, actives, focusPatho, traitement, vueEvo, repas, collations });
+  const instantane = (message: string) => ({ message, vue, onglet, zone, actives, focusPatho, traitement, vueEvo, repas, collations, effortsPerso });
   const reinitialiser = () => {
     setAnnulation(instantane('Tout est revenu à l\'état de départ.'));
     setPres(null); avantPres.current = null; setTour(null); setSeq(null);
-    setActives([]); setTraitement({}); setVueEvo(null); setZone(null); setFocusPatho(null); setHisto([]); setRepas(REPAS_JOUR); setCollations([]);
+    setActives([]); setTraitement({}); setVueEvo(null); setZone(null); setFocusPatho(null); setHisto([]); setRepas(REPAS_JOUR); setCollations([]); setEffortsPerso([]);
     setOnglet('explorer'); setVue('corps'); setRalenti(false);
     if (sonOn) { son.couper(); setSonOn(false); }
     setCleScene((n) => n + 1);
@@ -221,12 +239,12 @@ export default function App() {
   const toutRetirer = () => {
     setAnnulation(instantane('Maladies et traitements retirés.'));
     setPres(null); avantPres.current = null; setSeq(null);
-    setActives([]); setTraitement({}); setVueEvo(null); setFocusPatho(null); setCollations([]);
+    setActives([]); setTraitement({}); setVueEvo(null); setFocusPatho(null); setCollations([]); setEffortsPerso([]);
   };
   const annuler = () => {
     const a = annulation; if (!a) return;
     setAnnulation(null);
-    setActives(a.actives); setTraitement(a.traitement); setVueEvo(a.vueEvo); setFocusPatho(a.focusPatho); setRepas(a.repas); setCollations(a.collations);
+    setActives(a.actives); setTraitement(a.traitement); setVueEvo(a.vueEvo); setFocusPatho(a.focusPatho); setRepas(a.repas); setCollations(a.collations); setEffortsPerso(a.effortsPerso);
     setOnglet(a.onglet); setVue(a.vue); setZone(a.zone);
   };
 
@@ -280,6 +298,7 @@ export default function App() {
       <button className={vue === 'cellule' ? 'actif' : ''} onClick={() => vueManuelle('cellule')}>Cellule</button>
       <button className={vue === 'rein' ? 'actif' : ''} onClick={() => vueManuelle('rein')}>Rein</button>
       <button className={vue === 'courbe' ? 'actif' : ''} onClick={() => vueManuelle('courbe')}>Courbes</button>
+      <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => vueManuelle('vaisseau')} title="Les petits vaisseaux : rétine, rein, nerf"><span className="lg:hidden">Vaiss.</span><span className="hidden lg:inline">Vaisseaux</span></button>
     </div>
   );
 
@@ -312,9 +331,9 @@ export default function App() {
 
       <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
-          <div className={`${tour !== null || seq !== null || pres ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
+          <div className={`${tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
             <Stage key={cleScene} vue={vue} etat={etatScene} etatSans={etatSansScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={vueManuelle}
-              onVoyage={lancerVoyage} figer={minuteVoyage} bandeau={bandeauPatho}
+              onVoyage={lancerVoyage} siteMicroPatho={pathoVue === 'retino' ? 'retine' : pathoVue === 'nephro' ? 'glomerule' : pathoVue === 'neuro' || pathoVue === 'pied' ? 'nerf' : null} onLectureLocale={setLectLoc} onAgir={agir} nbAjouts={collations.length + effortsPerso.length} figer={minuteVoyage} bandeau={bandeauPatho}
               tourActif={tour !== null} site={site} onSite={setSite} allerA={allerA}
               lecture={tour && voyage && etapeVoyage && minuteVoyage !== null ? { titre: voyage.titre, texte: etapeVoyage.texte(etatScene.terrain, etatScene), detail: etapeVoyage.detail(etatScene, ((minuteVoyage % 1440) + 1440) % 1440, niveau), index: tour.i, total: voyage.etapes.length, pause: tourPause, voixDetail: true }
                 : pres && etapePres ? { titre: PRESENTATION_PAR_ID[pres.id].titre, texte: etapePres.texte, detail: etapePres.detail?.(etatScene, etatSansScene), index: pres.i, total: PRESENTATION_PAR_ID[pres.id].etapes.length, pause: pres.pause, voixDetail: true }

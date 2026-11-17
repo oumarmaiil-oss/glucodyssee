@@ -12,11 +12,12 @@ import { creerIlot2D } from '../render/ilot2d.ts';
 import { creerCellule2D } from '../render/cellule2d.ts';
 import { creerRein2D } from '../render/rein2d.ts';
 import { creerCourbe2D } from '../render/courbe2d.ts';
+import { creerVaisseau2D, ETAPES_MICRO, SITES_MICRO, type SiteMicro } from '../render/vaisseau2d.ts';
 import { creerTraces, type ModeTraces, type Traces } from '../render/traces.ts';
 import { VOYAGES, type Voyage } from '../content/voyages.ts';
-import { Route } from 'lucide-react';
+import { Candy, Cookie, Footprints, Hand, Trash2, Route, Utensils } from 'lucide-react';
 
-export type Vue = 'corps' | 'ilot' | 'ilot3d' | 'cellule' | 'rein' | 'courbe';
+export type Vue = 'corps' | 'ilot' | 'ilot3d' | 'cellule' | 'rein' | 'courbe' | 'vaisseau';
 export type SiteCellule = 'muscle' | 'foie';
 
 /** Où chaque zone est visible. Sert à proposer la bonne vue au lieu de changer de vue tout seul. */
@@ -27,9 +28,10 @@ const ZONES_VUE: Record<Vue, ZoneId[]> = {
   cellule: ['muscles', 'foie', 'graisse', 'sang'],
   rein: ['reins'],
   courbe: ['sang', 'globules'],
+  vaisseau: ['yeux', 'reins', 'nerfs', 'pieds'],
 };
 export const zoneDansVue = (z: ZoneId, v: Vue) => ZONES_VUE[v].includes(z);
-export const NOMS_VUES: Record<Vue, string> = { corps: 'Corps', ilot: 'Îlot 2D', ilot3d: 'Îlot 3D', cellule: 'Cellule', rein: 'Rein', courbe: 'Courbes' };
+export const NOMS_VUES: Record<Vue, string> = { corps: 'Corps', ilot: 'Îlot 2D', ilot3d: 'Îlot 3D', cellule: 'Cellule', rein: 'Rein', courbe: 'Courbes', vaisseau: 'Petits vaisseaux' };
 /** Meilleure vue pour une zone. */
 export const vuePour = (z: ZoneId): Vue => (z === 'ilot' ? 'ilot' : 'corps');
 export const SITES_CELLULE: { id: SiteCellule; nom: string }[] = [{ id: 'muscle', nom: 'Muscle' }, { id: 'foie', nom: 'Foie' }];
@@ -55,10 +57,17 @@ interface Props {
   legende: string;
   onVue: (v: Vue) => void;
   onVoyage: (id: Voyage['id']) => void;
+  /** Agir en direct à l'heure affichée. */
+  onAgir: (a: 'sucre' | 'collation' | 'repas' | 'marche' | 'effacer', minute: number) => void;
+  nbAjouts: number;
   /** Minute imposée par un voyage guidé : l'horloge s'y fige (null = la journée défile). */
   figer: number | null;
   /** Ce que la maladie ouverte montre dans cette vue. */
   bandeau: string | null;
+  /** Site des petits vaisseaux le plus parlant pour la maladie ouverte. */
+  siteMicroPatho?: SiteMicro | null;
+  /** Signale qu'une démonstration propre à la scène est en cours. */
+  onLectureLocale?: (on: boolean) => void;
   tourActif: boolean;
   /** Lecture en cours (voyage du sucre, présentation, effet du traitement dans le temps). */
   lecture: Lecture | null;
@@ -73,7 +82,7 @@ interface Props {
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean; /** La voix off lit aussi l'explication. */ voixDetail?: boolean }
 
-export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, figer, bandeau, tourActif, lecture, onLecture, site, onSite, allerA, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, onAgir, nbAjouts, figer, bandeau, siteMicroPatho, onLectureLocale, tourActif, lecture: lectureApp, onLecture: onLectureApp, site, onSite, allerA, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const petitEcran = typeof window !== 'undefined' && window.innerWidth < 700;
@@ -124,6 +133,28 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
     else horloge.current.pause = pauseJour;
   }, [pauseJour, figer]);
   const [menuVoyages, setMenuVoyages] = useState(false);
+  const [menuAgir, setMenuAgir] = useState(false);
+  // Petits vaisseaux : site (rétine, rein, nerf) et démonstration des étapes de la microangiopathie.
+  const [siteMicro, setSiteMicro] = useState<SiteMicro>('retine');
+  useEffect(() => { if (zone === 'yeux') setSiteMicro('retine'); else if (zone === 'reins') setSiteMicro('glomerule'); else if (zone === 'nerfs' || zone === 'pieds') setSiteMicro('nerf'); }, [zone]);
+  useEffect(() => { if (siteMicroPatho) setSiteMicro(siteMicroPatho); }, [siteMicroPatho]);
+  const [micro, setMicro] = useState<{ i: number; pause: boolean } | null>(null);
+  useEffect(() => {
+    if (!micro || micro.pause || micro.i >= ETAPES_MICRO.length - 1) return;
+    return apresDelaiEtVoix(5600, () => setMicro((m) => (m ? { ...m, i: m.i + 1 } : m)));
+  }, [micro]);
+  useEffect(() => { if (vue !== 'vaisseau') setMicro(null); }, [vue]);
+  useEffect(() => { if (lectureApp) setMicro(null); }, [lectureApp]);
+  useEffect(() => { onLectureLocale?.(!!micro); }, [!!micro]);
+  const lecture: Lecture | null = lectureApp ?? (micro ? { titre: 'Les petits vaisseaux', texte: `${ETAPES_MICRO[micro.i].titre} : ${ETAPES_MICRO[micro.i].texte}`, detail: ETAPES_MICRO[micro.i].detail, index: micro.i, total: ETAPES_MICRO.length, pause: micro.pause, voixDetail: true } : null);
+  const onLecture = (a: 'prev' | 'next' | 'pause' | 'restart' | 'stop') => {
+    if (lectureApp || !micro) { onLectureApp(a); return; }
+    if (a === 'prev') setMicro({ ...micro, i: Math.max(0, micro.i - 1) });
+    else if (a === 'next') setMicro({ ...micro, i: Math.min(ETAPES_MICRO.length - 1, micro.i + 1) });
+    else if (a === 'pause') setMicro({ ...micro, pause: !micro.pause });
+    else if (a === 'restart') setMicro({ i: 0, pause: false });
+    else setMicro(null);
+  };
   useEffect(() => { if (allerA) horloge.current.aller(allerA.minute); }, [allerA?.n]);
   useEffect(() => { setEtiquettes(niveau === 1 && !petitEcran); }, [niveau]);
 
@@ -135,17 +166,19 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
     const opts = { onPick: (z: ZoneId | null) => onZoneRef.current(z), onHover: setSurvol, leger };
     const monter = (r: Rendu) => {
       if (annule) { r.dispose(); return; }
-      rendu.current = r; r.maj(etatRef.current, etatSans); r.setSite?.(site); setPret(true);
+      rendu.current = r; r.maj(etatRef.current, etatSans); r.setSite?.(vue === 'vaisseau' ? siteMicro : site); setPret(true);
     };
     if (vue === 'ilot3d') import('../render/ilot3d.ts').then((m) => monter(m.creerIlot3D(el, opts))).catch(() => setErreur3D(true));
     else if (vue === 'ilot') monter(creerIlot2D(el, opts));
     else if (vue === 'cellule') monter(creerCellule2D(el, opts, site));
     else if (vue === 'rein') monter(creerRein2D(el, opts));
     else if (vue === 'courbe') monter(creerCourbe2D(el, opts));
+    else if (vue === 'vaisseau') monter(creerVaisseau2D(el, opts));
     else monter(creerCorps2D(el, opts));
     return () => { annule = true; rendu.current?.dispose(); rendu.current = null; };
   }, [vue]);
-  useEffect(() => { rendu.current?.setSite?.(site); }, [site, pret]);
+  useEffect(() => { rendu.current?.setSite?.(vue === 'vaisseau' ? siteMicro : site); }, [site, siteMicro, pret]);
+  useEffect(() => { const r = rendu.current as { setEtape?: (i: number | null) => void } | null; if (pret) r?.setEtape?.(micro ? micro.i : null); }, [micro, pret, vue]);
 
   // Boucle d'animation unique.
   useEffect(() => {
@@ -397,7 +430,12 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
           <button onClick={() => onVue(vuePour(zone))} className="font-semibold text-accent">{NOMS_VUES[vuePour(zone)]} →</button>
         </div>
       )}
-      {bandeau && !lecture && !nomSurvol && !(zone && !zoneDansVue(zone, vue)) && (
+      {vue === 'vaisseau' && pret && !lecture && (
+        <button onClick={() => setMicro({ i: 0, pause: false })} className="absolute z-20 right-2 top-12 lg:top-14 rounded-full bg-miel hover:brightness-110 text-ink text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(245,165,36,.45)]">
+          <Play size={13} fill="currentColor" /> Les étapes de l'atteinte
+        </button>
+      )}
+      {bandeau && !lecture && vue !== 'vaisseau' && vue !== 'courbe' && !nomSurvol && !(zone && !zoneDansVue(zone, vue)) && (
         <div className="absolute z-10 top-12 lg:top-14 left-1/2 -translate-x-1/2 w-[min(66%,460px)] rounded-xl bg-ink/88 border border-miel/40 px-3 py-1.5 text-[11.5px] sm:text-xs leading-snug text-txt pointer-events-none text-center">{bandeau}</div>
       )}
       {vue === 'corps' && pret && (
@@ -420,12 +458,16 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
             <button className={vue === 'ilot3d' ? 'actif' : ''} onClick={() => onVue('ilot3d')} title="Îlot en 3D : faites-le tourner" aria-label="3D"><span className="inline-flex items-center gap-1">3D<RotateCw size={11} className="text-accent" /></span></button>
           </div>
         )}
+        {vue === 'vaisseau' && (
+          <div className="seg shrink-0">{SITES_MICRO.map((s) => <button key={s.id} className={siteMicro === s.id ? 'actif' : ''} onClick={() => setSiteMicro(s.id)}>{s.nom}</button>)}</div>
+        )}
         {vue === 'cellule' && (
           <div className="seg shrink-0">{SITES_CELLULE.map((s) => <button key={s.id} className={site === s.id ? 'actif' : ''} onClick={() => onSite(s.id)}>{s.nom}</button>)}</div>
         )}
         {peutRetour && <button onClick={onRetour} className="btn-outil shrink-0" aria-label="Revenir à la zone précédente">← Retour</button>}
         {avecTraces && <button onClick={() => setTraces((m) => (m === 'aucun' ? 'glycemie' : m === 'glycemie' && niveau >= 2 ? 'tout' : 'aucun'))} className={`btn-outil shrink-0 ${traces !== 'aucun' ? 'actif' : ''}`} aria-label="Afficher le capteur de glucose"><Activity size={14} /> {traces === 'tout' ? 'Capteur + insuline' : 'Capteur'}</button>}
         {vue !== 'ilot3d' && <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms" title="Noms"><Tag size={14} /><span className="hidden sm:inline">Noms</span></button>}
+        {!lecture && <button onClick={() => { setMenuAgir((v) => !v); setCapture(false); }} className={`btn-outil shrink-0 ${menuAgir ? 'actif' : ''}`} aria-label="Agir maintenant : manger, bouger" aria-expanded={menuAgir} title="Agir maintenant"><Hand size={14} /> Agir</button>}
         {enreg ? (
           <button onClick={video} className="btn-outil shrink-0 !text-white !bg-miel/85 !border-miel" aria-label="Arrêter l'enregistrement vidéo"><span className="w-2 h-2 rounded-full bg-white animate-pulse" /><Square size={12} fill="currentColor" /> Stop</button>
         ) : (
@@ -433,6 +475,21 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
         )}
         <button onClick={() => { onZone(null); rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble" title="Tout voir"><RotateCcw size={14} /><span className="hidden sm:inline">Tout voir</span></button>
       </div>
+      {menuAgir && !lecture && (
+        <>
+          <div className="absolute inset-0 z-20" onClick={() => setMenuAgir(false)} aria-hidden="true" />
+          <div className="absolute z-30 top-12 right-2 lg:top-14 w-64 rounded-xl bg-ink/95 border border-line p-1.5 shadow-xl fade-in" role="menu" aria-label="Agir maintenant">
+            <div className="px-2.5 pt-1 pb-1.5 text-[11px] text-dim">À l'heure affichée ({fmtHeure(horloge.current.minute / 60)}), puis la journée se recalcule :</div>
+            {([['sucre', Candy, '15 g de sucre rapide', 'Le resucrage de la règle des 15'], ['collation', Cookie, 'Collation de 30 g', 'Un fruit, un morceau de pain'], ['repas', Utensils, 'Repas imprévu de 60 g', 'Sans insuline rapide en plus'], ['marche', Footprints, 'Marcher 30 minutes', 'Les muscles captent du sucre']] as const).map(([id, Icone, nom, sous]) => (
+              <button key={id} role="menuitem" onClick={() => { setMenuAgir(false); onAgir(id, horloge.current.minute); }} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 active:bg-card2">
+                <span className="w-8 h-8 rounded-lg bg-miel/15 text-miel grid place-items-center shrink-0"><Icone size={16} /></span>
+                <span><span className="block text-[13px] font-semibold">{nom}</span><span className="block text-[11px] text-dim">{sous}</span></span>
+              </button>
+            ))}
+            {nbAjouts > 0 && <button role="menuitem" onClick={() => { setMenuAgir(false); onAgir('effacer', 0); }} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 text-muted"><Trash2 size={15} className="ml-2 mr-1.5" /> Retirer les {nbAjouts} ajout{nbAjouts > 1 ? 's' : ''} de la journée</button>}
+          </div>
+        </>
+      )}
       {capture && !enreg && (
         <>
           <div className="absolute inset-0 z-20" onClick={() => setCapture(false)} aria-hidden="true" />

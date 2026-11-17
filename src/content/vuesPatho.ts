@@ -14,6 +14,7 @@ export const VUES_PATHO: Record<string, VuesPatho> = {
     courbe: 'Glycémie du réveil haute, pics élevés après les repas : la courbe sort de la bande verte.',
     corps: 'Sang chargé de sucre, graisse du ventre, muscles qui captent moins.',
     rein: 'Au-dessus de 1,80 g/L après les repas, un peu de sucre passe dans les urines.',
+    vaisseau: 'Le sucre haut colle aux parois des petits vaisseaux ; avec les années (onglet Évolution), elles s\'abîment.',
   } },
   t1: { site: 'muscle', vues: {
     ilot: 'Les lymphocytes ont détruit les cellules bêta : plus d\'insuline (en 3D, cellules bêta éteintes).',
@@ -66,10 +67,10 @@ export const VUES_PATHO: Record<string, VuesPatho> = {
     courbe: 'Sous sulfamide ou insuline, hypoglycémies plus fréquentes : ils sont éliminés plus lentement.',
     corps: 'Reins plus petits et plus pâles.',
   } },
-  retino: { vues: { corps: 'Taches rouges sur la rétine (yeux).', courbe: 'C\'est l\'excès de sucre au fil des années qui l\'entretient (onglet Évolution).' } },
-  nephro: { vues: { rein: 'Glomérule plus pâle, filtration réduite.', corps: 'Reins plus pâles.', courbe: 'L\'exposition au sucre (HbA1c) entretient l\'atteinte.' } },
-  neuro: { vues: { corps: 'Nerfs des jambes qui scintillent, pieds moins sensibles.', courbe: 'L\'exposition au sucre (HbA1c) entretient l\'atteinte.' } },
-  pied: { vues: { corps: 'Plaie sous le pied, sur un pied qui ne sent plus.' } },
+  retino: { vues: { vaisseau: 'Capillaire de la rétine : paroi épaissie, micro-anévrismes, exsudats, puis néovaisseaux (bouton « Les étapes de l\'atteinte »).', corps: 'Taches rouges sur la rétine (yeux).', courbe: 'C\'est l\'excès de sucre au fil des années qui l\'entretient (onglet Évolution).' } },
+  nephro: { vues: { vaisseau: 'Capillaire du glomérule : la paroi épaissie laisse passer l\'albumine dans les urines.', rein: 'Glomérule plus pâle, filtration réduite.', corps: 'Reins plus pâles.', courbe: 'L\'exposition au sucre (HbA1c) entretient l\'atteinte.' } },
+  neuro: { vues: { vaisseau: 'Le petit vaisseau qui nourrit le nerf s\'abîme : les fibres nerveuses s\'éteignent.', corps: 'Nerfs des jambes qui scintillent, pieds moins sensibles.', courbe: 'L\'exposition au sucre (HbA1c) entretient l\'atteinte.' } },
+  pied: { vues: { corps: 'Plaie sous le pied, sur un pied qui ne sent plus.', vaisseau: 'Nerf du pied : les fibres qui portent la sensibilité ont disparu.' } },
   coronaire: { vues: { corps: 'Le cœur est atteint ; les artères se voient en détail dans Hémodyssée.', courbe: 'Le risque d\'infarctus monte avec l\'HbA1c (onglet Évolution).' } },
 };
 
