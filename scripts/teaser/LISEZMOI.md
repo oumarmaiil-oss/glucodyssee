@@ -25,3 +25,15 @@ Fabriquée en moins d'une minute : enregistrement en temps réel (le déroulé e
 
 Résultat publié : `docs/videos/glucodyssee-ramadan-15s-vertical.mp4`. La carte de fin rappelle qu'il s'agit d'une
 simulation pédagogique et qu'on ne change jamais son traitement sans son médecin.
+
+## Version verticale de 30 secondes : 3 situations, 3 courbes
+
+Trois logiques différentes, toutes tirées de l'application : Ramadan (choisir un médicament sûr pour le jeûne),
+type 2 + metformine (traitement de fond, courbe en pointillés « sans traitement »), type 1 + insuline (traitement vital).
+Environ 50 secondes de fabrication.
+
+1. `node tiktok3.cjs` → `tiktok3-video.mp4`
+2. `DUREE=30 T_PULSE=1.2 T_ARP=0.6 T_IMP=2.6 T_FIN=26.8 python3 musique.py musique30v.wav`
+3. `ffmpeg -i tiktok3-video.mp4 -i musique30v.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart glucodyssee-3-situations-30s-vertical.mp4`
+
+Résultat publié : `docs/videos/glucodyssee-3-situations-30s-vertical.mp4`.
