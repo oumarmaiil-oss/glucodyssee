@@ -14,7 +14,7 @@ import './index.css';
 createRoot(document.getElementById('root')!).render(<Secours><App /></Secours>);
 
 // Signature (console).
-console.info('%cGlucodyssée%c — conçu par le Dr O. Sow · version ' + __VERSION__, 'color:#f5a524;font-weight:700;font-size:14px', 'color:inherit');
+console.info('%cGlucodyssée%c — conçu par le Dr O. Sow · version ' + __VERSION__, 'color:#f0a832;font-weight:700;font-size:14px', 'color:inherit');
 
 // Les mises à jour arrivent toutes seules : à chaque nouvelle version publiée, l'application
 // (installée ou non) la récupère et propose de recharger.

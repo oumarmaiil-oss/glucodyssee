@@ -1,10 +1,8 @@
 /**
- * Moteur de glycémie : modèle physiologique simplifié, sans interface.
- * Port en TypeScript du moteur calibré du 16/11/2026 (dépôt hemodyssee, docs/glucodyssee) :
- * mêmes équations, mêmes paramètres, mêmes repères (voir moteur.test.ts).
+ * Moteur de glycémie (prototype pour Glucodyssée) : modèle physiologique simplifié, sans interface.
  * Pas de temps : 1 minute. Glycémie interne en mg/dL (affichage en g/L = mg/dL ÷ 100).
  * Inspiré des modèles de référence (modèle minimal de Bergman, absorption des repas de Dalla Man),
- * fortement simplifié et calibré sur des repères cliniques.
+ * fortement simplifié et calibré sur des repères cliniques (voir les tests).
  *
  * Flux en mg/kg/min ; adulte de 70 kg.
  *   dG/dt = (PGE + Ra − Ucerveau − Uinsuline − Urein − Ueffort) / Vg
@@ -28,13 +26,12 @@ const SMAX = 17.0;              // sécrétion maximale (µU/mL/min) pour une fo
 const HILL_N = 5, HILL_K = 164; // réponse des cellules bêta au glucose (sigmoïde)
 const INC = 1.5;                // effet incrétine (GLP-1, GIP) lié au repas
 const K_VIDANGE = 0.018, K_ABS = 0.03, F_ABS = 0.9; // absorption des repas
-export const SEUIL_REIN = 180;
-const K_REIN = 0.012;           // seuil rénal du glucose
-
-export interface Profil { nom?: string; beta: number; si: number; sl: number; inc: number }
+const SEUIL_REIN = 180, K_REIN = 0.012;               // seuil rénal du glucose
 
 /** Profils de patients (fonction bêta, sensibilité périphérique et hépatique, effet incrétine). */
-export const PROFILS: Record<string, Profil> = {
+export interface Profil { nom: string; beta: number; si: number; sl: number; inc: number }
+export type ProfilId = 'sain' | 'prediabete' | 't2leger' | 't2' | 't2evolue' | 't1';
+export const PROFILS: Record<ProfilId, Profil> = {
   sain:        { nom: 'Sujet sain',            beta: 1.0,  si: 1.0,  sl: 1.0,  inc: 1.0 },
   prediabete:  { nom: 'Prédiabète',            beta: 0.6,  si: 0.55, sl: 0.6,  inc: 0.8 },
   t2leger:     { nom: 'Diabète de type 2 (début)',   beta: 0.42, si: 0.45, sl: 0.5,  inc: 0.6 },
@@ -43,11 +40,9 @@ export const PROFILS: Record<string, Profil> = {
   t1:          { nom: 'Diabète de type 1',     beta: 0.0,  si: 1.0,  sl: 1.0,  inc: 0.0 },
 };
 
-export type TypeInsuline = 'rapideAnalogue' | 'rapideHumaine' | 'nph' | 'premix30' | 'glargine';
-interface DefInsuline { nom: string; k?: number; melange?: [TypeInsuline, number][]; continu?: boolean }
-
 /** Insulines : constante d'absorption sous-cutanée (pic ≈ 1/k minutes) ou débit continu (analogue lent). */
-export const INSULINES: Record<TypeInsuline, DefInsuline> = {
+export type InsulineId = 'rapideAnalogue' | 'rapideHumaine' | 'nph' | 'premix30' | 'glargine';
+export const INSULINES: Record<InsulineId, { nom: string; k?: number; continu?: boolean; melange?: [InsulineId, number][] }> = {
   rapideAnalogue: { nom: 'Analogue rapide (aspart, lispro)', k: 1 / 55 },
   rapideHumaine:  { nom: 'Insuline humaine rapide (ordinaire)', k: 1 / 120 },
   nph:            { nom: 'Insuline humaine intermédiaire (NPH)', k: 1 / 300 },
@@ -58,23 +53,19 @@ export const INSULINES: Record<TypeInsuline, DefInsuline> = {
 /** Effet d'une dose relative (0,5 = demi-dose, 1 = standard, 2 = forte) : rendement décroissant. */
 const eff = (d?: number) => (!d ? 0 : d <= 1 ? d : 1 + 0.35 * (d - 1));
 
-export interface RepasM { h: number; g: number; nom?: string }
-export interface Injection { h: number; type: TypeInsuline; u: number }
-export interface EffortM { h: number; duree: number; intensite?: number }
-export interface TraitementsMoteur { metformine?: number; sulfamide?: number; glibenclamide?: boolean; idpp4?: number; aglp1?: number; isglt2?: number }
-
 /** Repas par défaut : rythme sénégalais (repas principal à midi). Heures en heures décimales, glucides en g. */
-export const REPAS_DEFAUT: RepasM[] = [
-  { h: 7.5, g: 50, nom: 'Petit-déjeuner' },
-  { h: 13.5, g: 100, nom: 'Déjeuner (repas principal)' },
+export interface Repas { h: number; g: number; nom?: string }
+export interface Injection { h: number; type: InsulineId; u: number }
+export interface Effort { h: number; duree: number; intensite?: number }
+export interface Traitements { metformine?: number; sulfamide?: number; glibenclamide?: boolean; idpp4?: number; aglp1?: number; isglt2?: number }
+export interface Options { profil?: ProfilId | Profil; repas?: Repas[]; traitements?: Traitements; injections?: Injection[]; efforts?: Effort[]; jours?: number; poids?: number; insuffisanceRenale?: boolean }
+export interface Stats { moyenne: number; hba1c: number; tir: number; tbr70: number; tbr54: number; tar180: number; min: number; max: number; aJeun: number }
+export interface Resultat { t: number[]; G: number[]; I: number[]; Ra: number[]; urine: number; stats: Stats }
+export const REPAS_DEFAUT: Repas[] = [
+  { h: 7.5, g: 50, nom: 'Petit-déjeuner (pain, café au lait)' },
+  { h: 13.5, g: 100, nom: 'Déjeuner (thiéboudienne)' },
   { h: 20.5, g: 70, nom: 'Dîner' },
 ];
-
-export interface Sortie {
-  t: number[]; G: number[]; I: number[]; Ra: number[];
-  S: number[]; PGE: number[]; Uins: number[]; Ucer: number[]; Urein: number[]; Ueff: number[]; glucagon: number[];
-  urine: number; stats: StatsM;
-}
 
 /**
  * Simule `jours` journées identiques (la dernière sert aux résultats : régime établi).
@@ -82,9 +73,7 @@ export interface Sortie {
  * injections  : [{ h, type, u }] (u = unités) ; une insuline lente « glargine » s'injecte une fois par jour
  * efforts     : [{ h, duree (min), intensite (0-1) }]
  */
-export function simuler({ profil = 'sain', repas = REPAS_DEFAUT, traitements = {}, injections = [], efforts = [], jours = 2, poids = 70, insuffisanceRenale = false }: {
-  profil?: string | Profil; repas?: RepasM[]; traitements?: TraitementsMoteur; injections?: Injection[]; efforts?: EffortM[]; jours?: number; poids?: number; insuffisanceRenale?: boolean;
-} = {}): Sortie {
+export function simuler({ profil = 'sain', repas = REPAS_DEFAUT, traitements = {}, injections = [], efforts = [], jours = 2, poids = 70, insuffisanceRenale = false }: Options = {}): Resultat {
   const p = typeof profil === 'string' ? PROFILS[profil] : profil;
   const tr = traitements;
   const metf = 1 - 0.35 * eff(tr.metformine);                 // ↓ production hépatique
@@ -103,19 +92,20 @@ export function simuler({ profil = 'sain', repas = REPAS_DEFAUT, traitements = {
   const depots: [number, number, number][] = [];              // dépôts sous-cutanés [d1, d2, k]
   let continuLente = 0;           // débit continu d'analogue lent (U/min), régime établi
   for (const inj of injections) if (INSULINES[inj.type]?.continu) continuLente += inj.u / 1440;
-  const sortie: Sortie = { t: [], G: [], I: [], Ra: [], S: [], PGE: [], Uins: [], Ucer: [], Urein: [], Ueff: [], glucagon: [], urine: 0, stats: null as unknown as StatsM };
+  const sortie = { t: [] as number[], G: [] as number[], I: [] as number[], Ra: [] as number[], urine: 0, stats: undefined as unknown as Stats };
   const debutJour = (jours - 1) * 1440;
   let rein = 0;
 
   for (let m = 0; m < N; m++) {
+    const hm = (m % 1440) / 60;
     // Repas et injections programmés à cette minute
     for (const r of repas) if (Math.round(r.h * 60) === m % 1440) Qsto += (r.g * 1000) / poids;
     for (const inj of injections) {
       if (Math.round(inj.h * 60) !== m % 1440) continue;
       const def = INSULINES[inj.type];
       if (!def || def.continu) continue;
-      const parts = def.melange ?? [[inj.type, 1]];
-      for (const [t, frac] of parts) depots.push([inj.u * frac, 0, INSULINES[t].k!]);
+      const parts: [InsulineId, number][] = def.melange ?? [[inj.type, 1]];
+      for (const [t, frac] of parts) depots.push([inj.u * frac, 0, INSULINES[t].k ?? 1 / 120]);
     }
     // Absorption digestive
     const vid = kVid * Qsto, abs = K_ABS * Qgut;
@@ -158,10 +148,6 @@ export function simuler({ profil = 'sain', repas = REPAS_DEFAUT, traitements = {
     if (G < 20) G = 20;
     if (m >= debutJour) {
       sortie.t.push((m - debutJour) / 60); sortie.G.push(G); sortie.I.push(Iper); sortie.Ra.push(Ra);
-      sortie.S.push(S); sortie.PGE.push(PGE); sortie.Uins.push(Uins + Ueff); sortie.Ucer.push(Ucerveau); sortie.Urein.push(Urein); sortie.Ueff.push(Ueffort);
-      // Indice pédagogique de sécrétion de glucagon (1 = jeûne du sujet sain) : relancé par l'hypoglycémie,
-      // freiné par l'insuline des cellules bêta voisines, par le sucre et par les incrétines.
-      sortie.glucagon.push(contre * frein * (0.55 + 0.45 * Math.exp(-Ien / 12)) / 0.781);
       rein += Urein * poids;      // mg/min
     }
   }
@@ -170,35 +156,24 @@ export function simuler({ profil = 'sain', repas = REPAS_DEFAUT, traitements = {
   return sortie;
 }
 
-export interface StatsM { moyenne: number; hba1c: number; tir: number; tbr70: number; tbr54: number; tar180: number; tar250: number; min: number; max: number; aJeun: number }
-
 /** Statistiques de la journée : moyenne, HbA1c estimée (formule ADAG), temps dans la cible, hypoglycémies. */
-export function statistiques(Gs: ArrayLike<number>): StatsM {
+export function statistiques(Gs: number[]): Stats {
   const n = Gs.length;
-  let s = 0, dans = 0, sous70 = 0, sous54 = 0, sur180 = 0, sur250 = 0, min = Infinity, max = -Infinity;
-  for (let i = 0; i < n; i++) {
-    const g = Gs[i]; s += g;
-    if (g >= 70 && g <= 180) dans++;
-    if (g < 70) sous70++;
-    if (g < 54) sous54++;
-    if (g > 180) sur180++;
-    if (g > 250) sur250++;
-    if (g < min) min = g;
-    if (g > max) max = g;
-  }
-  const moy = s / n;
+  const moy = Gs.reduce((a, b) => a + b, 0) / n;
+  const dans = Gs.filter((g) => g >= 70 && g <= 180).length / n;
+  const sous70 = Gs.filter((g) => g < 70).length / n, sous54 = Gs.filter((g) => g < 54).length / n;
+  const sur180 = Gs.filter((g) => g > 180).length / n;
   const aJeun = Gs[Math.round(7.25 * 60)] ?? Gs[0];
-  return { moyenne: moy, hba1c: (moy + 46.7) / 28.7, tir: dans / n, tbr70: sous70 / n, tbr54: sous54 / n, tar180: sur180 / n, tar250: sur250 / n, min, max, aJeun };
+  return { moyenne: moy, hba1c: (moy + 46.7) / 28.7, tir: dans, tbr70: sous70, tbr54: sous54, tar180: sur180, min: Math.min(...Gs), max: Math.max(...Gs), aJeun };
 }
 
 /**
  * Évolution sur plusieurs années (vue « années ») : dans le type 2, la fonction des cellules bêta baisse
  * d'environ 4 à 6 % par an (ordre de grandeur de l'étude UKPDS ; 6 % par défaut pour rendre l'évolution lisible) ; l'HbA1c de chaque année est celle d'une journée type.
- * Retourne aussi un indice d'exposition au sucre (somme des années × excès d'HbA1c au-dessus de 6 %).
+ * Retourne aussi un indice d'exposition au sucre (somme des années × excès d'HbA1c au-dessus de 6 %),
+ * qui sert à faire progresser les jauges de complications (yeux, reins, nerfs, cœur).
  */
-export function evolution({ profil = 't2', traitements = {}, injections = [], repas = REPAS_DEFAUT, annees = 10, perteBeta = 0.06 }: {
-  profil?: string | Profil; traitements?: TraitementsMoteur; injections?: Injection[]; repas?: RepasM[]; annees?: number; perteBeta?: number;
-} = {}) {
+export function evolution({ profil = 't2', traitements = {}, injections = [], repas = REPAS_DEFAUT, annees = 10, perteBeta = 0.06 }: { profil?: ProfilId | Profil; traitements?: Traitements; injections?: Injection[]; repas?: Repas[]; annees?: number; perteBeta?: number } = {}) {
   const base = typeof profil === 'string' ? PROFILS[profil] : profil;
   const res: { annee: number; hba1c: number; aJeun: number; exposition: number }[] = []; let exposition = 0;
   for (let a = 0; a <= annees; a++) {

@@ -1,39 +1,15 @@
 {
   "name": "Glucodyssée — le voyage du sucre",
   "short_name": "Glucodyssée",
-  "description": "La glycémie et le diabète en 2D et 3D : le voyage du sucre, le type 1, le type 2, l'hypoglycémie, les complications et l'effet des traitements.",
+  "description": "Simulateur pédagogique de la glycémie et du diabète.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#070a12",
-  "theme_color": "#070a12",
+  "background_color": "#0e0c0a",
+  "theme_color": "#0e0c0a",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
-  "id": "./",
-  "orientation": "any",
-  "categories": [
-    "education",
-    "medical",
-    "health"
-  ],
-  "prefer_related_applications": false
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
 }

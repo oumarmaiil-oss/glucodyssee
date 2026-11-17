@@ -18,8 +18,8 @@ En résumé, sans valeur juridique (seul le texte de la licence fait foi) :
 
 ## 2. Le contenu pédagogique : CC BY-NC-SA 4.0
 
-Le contenu (textes médicaux, fiches, maladies, traitements, présentations guidées, cas cliniques,
-questions, illustrations et images, dossier `src/content`) est publié sous
+Le contenu (textes médicaux, parcours, étapes, classes de traitements, scénarios, illustrations et
+images, dossier `src/content`) est publié sous
 **Creative Commons Attribution – Pas d'utilisation commerciale – Partage dans les mêmes conditions 4.0 International**
 (`CC BY-NC-SA 4.0`).
 Texte juridique : https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.fr
@@ -35,11 +35,9 @@ librement le contenu pour enseigner, informer ou soigner, en citant la source.
 
 ## 3. Ce qui n'est pas couvert par ces licences
 
-- **Marques** : Glucodyssée n'emploie que des DCI ; les marques éventuellement citées appartiennent à leurs titulaires.
-  Le nom et le logo « Glucodyssée » ne peuvent pas être utilisés pour présenter une version
-  modifiée comme la version officielle.
+- **Nom** : « Glucodyssée » ne peut pas être utilisé pour présenter une version modifiée comme la version officielle.
 - **Polices** (Plus Jakarta Sans, Fraunces, IBM Plex Mono) : licence SIL Open Font License.
-- **Bibliothèques** (React, three.js, lucide…) : leurs propres licences, dans `node_modules`.
+- **Bibliothèques** (React, lucide…) : leurs propres licences, dans `node_modules`.
 
 ## 4. Usage commercial et partenariats
 

@@ -7,7 +7,7 @@ export const WHATSAPP = '221774144799';
 export const WHATSAPP_AFFICHE = '+221 77 414 47 99';
 
 const URL_APP = 'https://oumarmaiil-oss.github.io/glucodyssee/';
-const TEXTE_PARTAGE = 'Glucodyssée : comprendre le sucre, le diabète, l\'hypoglycémie et l\'effet des traitements, en images. Gratuit, fonctionne sur téléphone.';
+const TEXTE_PARTAGE = 'Glucodyssée : comprendre la glycémie, le diabète de type 1 et de type 2 et l\'effet des traitements, en images. Gratuit, fonctionne sur téléphone.';
 
 /** Partage du lien de l'application : feuille de partage du téléphone, sinon WhatsApp. */
 export async function partagerApp() {

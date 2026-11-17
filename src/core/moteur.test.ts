@@ -1,12 +1,12 @@
 // Tests de calibration du moteur de glycémie : repères cliniques que le modèle doit respecter.
-// Port fidèle des 10 tests du 16/11/2026 (docs/glucodyssee du dépôt hemodyssee). Ne pas changer les repères sans accord.
+// Lancer : npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { simuler, evolution, type Injection, type RepasM } from './moteur.ts';
+import { simuler, evolution, type Injection, type Options } from './moteur.ts';
 
 const gl = (mg: number) => mg / 100; // mg/dL → g/L
-const SANS_DEJ: RepasM[] = [{ h: 7.5, g: 50 }, { h: 20.5, g: 70 }];
-const RAMADAN: RepasM[] = [{ h: 5, g: 70 }, { h: 19.5, g: 90 }, { h: 22, g: 40 }];
+const SANS_DEJ = [{ h: 7.5, g: 50 }, { h: 20.5, g: 70 }];
+const RAMADAN = [{ h: 5, g: 70 }, { h: 19.5, g: 90 }, { h: 22, g: 40 }];
 const T1_BB: Injection[] = [{ h: 21, type: 'glargine', u: 20 }, { h: 7.4, type: 'rapideAnalogue', u: 4 }, { h: 13.4, type: 'rapideAnalogue', u: 8 }, { h: 20.4, type: 'rapideAnalogue', u: 6 }];
 
 test('sujet sain : glycémie normale à jeun et après les repas, HbA1c normale', () => {
@@ -37,8 +37,8 @@ test('type 1 sans insuline : hyperglycémie majeure ; avec un schéma basal-bolu
 
 test('chaque classe baisse l\'HbA1c dans sa fourchette (type 2 à HbA1c ≈ 8 %)', () => {
   const ref = simuler({ profil: 't2' }).stats.hba1c;
-  const baisse = (tr: Record<string, number>) => ref - simuler({ profil: 't2', traitements: tr }).stats.hba1c;
-  const cas: [string, Record<string, number>, number, number][] = [['metformine', { metformine: 1 }, 0.5, 1.5], ['sulfamide', { sulfamide: 1 }, 0.8, 1.6], ['iDPP-4', { idpp4: 1 }, 0.4, 0.9], ['aGLP-1', { aglp1: 1 }, 0.9, 1.8], ['iSGLT2', { isglt2: 1 }, 0.3, 0.9]];
+  const baisse = (tr: object) => ref - simuler({ profil: 't2', traitements: tr }).stats.hba1c;
+  const cas: [string, object, number, number][] = [['metformine', { metformine: 1 }, 0.5, 1.5], ['sulfamide', { sulfamide: 1 }, 0.8, 1.6], ['iDPP-4', { idpp4: 1 }, 0.4, 0.9], ['aGLP-1', { aglp1: 1 }, 0.9, 1.8], ['iSGLT2', { isglt2: 1 }, 0.3, 0.9]];
   for (const [nom, tr, min, max] of cas) { const b = baisse(tr); assert.ok(b >= min && b <= max, `${nom} : −${b.toFixed(2)}`); }
   assert.ok(baisse({ metformine: 1, aglp1: 1 }) > baisse({ metformine: 1 }), 'une 2e classe ajoute son effet');
 });
@@ -61,7 +61,7 @@ test('risque d\'hypoglycémie : glibenclamide > gliclazide > iDPP-4 (repas saut�
 });
 
 test('insuffisance rénale : le sulfamide expose à une hypoglycémie plus profonde', () => {
-  const o = { profil: 't2leger', traitements: { sulfamide: 1, glibenclamide: true }, repas: SANS_DEJ };
+  const o: Options = { profil: 't2leger', traitements: { sulfamide: 1, glibenclamide: true }, repas: SANS_DEJ };
   assert.ok(simuler({ ...o, insuffisanceRenale: true }).stats.min < simuler(o).stats.min);
 });
 
@@ -74,6 +74,6 @@ test('type 1 : l\'effort fait baisser la glycémie ; l\'oubli du bolus la fait m
 test('évolution sur 10 ans : l\'HbA1c monte sans traitement ; le traitement réduit l\'exposition au sucre', () => {
   const sans = evolution({ profil: 't2leger', annees: 10 });
   const avec = evolution({ profil: 't2leger', annees: 10, traitements: { metformine: 1 } });
-  assert.ok(sans.at(-1)!.hba1c > sans[0].hba1c + 0.5, `${sans[0].hba1c} → ${sans.at(-1)!.hba1c}`);
+  assert.ok(sans.at(-1)!.hba1c > sans[0]!.hba1c + 0.5, `${sans[0]!.hba1c} → ${sans.at(-1)!.hba1c}`);
   assert.ok(avec.at(-1)!.exposition < sans.at(-1)!.exposition);
 });
