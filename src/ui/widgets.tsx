@@ -47,7 +47,7 @@ export function Moniteur({ e, niveau, ref0, compact }: { e: Etat; niveau: Niveau
   const hbTxt = st.hba1c > 14 ? '> 14' : v1(st.hba1c);
   const hypo = st.tbr54 > 0 ? { t: 'Niveau 2', c: 'text-alert' } : st.tbr70 > 0 ? { t: 'Niveau 1', c: 'text-warn' } : { t: 'Aucune', c: 'text-ok' };
   return (
-    <div className={`carte px-2.5 py-1.5 sm:p-3 gap-x-3.5 sm:gap-x-4 gap-y-2 flex overflow-x-auto scroll-thin [&>*]:shrink-0 sm:[&>*]:min-w-[86px] sm:grid ${compact ? 'sm:grid-cols-3' : 'sm:grid-cols-6'}`} data-testid="moniteur">
+    <div className={`carte px-2.5 py-1.5 sm:p-3 gap-x-3.5 sm:gap-x-4 gap-y-2 flex overflow-x-auto scroll-thin [&>*]:shrink-0 sm:[&>*]:min-w-[96px] ${compact ? 'sm:grid sm:grid-cols-3' : 'sm:gap-x-5'}`} data-testid="moniteur">
       <Mesure nom="Glycémie au réveil" valeur={g2(st.aJeun)} unite="g/L" note={j.t} couleur={j.c} delta={d(st.aJeun / 100, ref0 ? ref0.stats.aJeun / 100 : undefined, (x) => x.toFixed(2).replace('.', ','))} />
       <Mesure nom="HbA1c estimée" valeur={hbTxt} unite="%" note={hb.t} couleur={hb.c} delta={d(st.hba1c, ref0?.stats.hba1c, v1)} />
       {niveau >= 2 ? (
