@@ -71,6 +71,8 @@ export function creerScene2D(conteneur: HTMLElement, opt: OptionsRendu, def: {
   /** Zone affichée quand on demande une zone absente de cette vue (sinon : vue d'ensemble). */
   repli?: Partial<Record<ZoneId, ZoneId>>;
   siteInitial?: string;
+  /** Point à suivre avec la caméra (molécule suivie), ou null. */
+  suivi?: () => Pt | null;
 }): Rendu {
   const { W, H } = def;
   const cv = document.createElement('canvas');
@@ -118,6 +120,8 @@ export function creerScene2D(conteneur: HTMLElement, opt: OptionsRendu, def: {
         vue.s = lerp(anim.de.s, anim.a.s, k); vue.cx = lerp(anim.de.cx, anim.a.cx, k); vue.cy = lerp(anim.de.cy, anim.a.cy, k);
         if (anim.t >= 1) anim = null;
       }
+      const pt = def.suivi?.();
+      if (pt) { const k = Math.min(1, dt * 2.5); vue.s += (2.1 - vue.s) * k; vue.cx += (pt[0] - vue.cx) * k; vue.cy += (pt[1] - vue.cy) * k; }
       c.echelle = vue.s;
       def.avancer?.(c, i, dt);
       const b = base();

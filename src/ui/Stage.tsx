@@ -7,7 +7,7 @@ import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
 import { ZONES, type ZoneId } from '../content/zones.ts';
 import type { Rendu } from '../render/scene2d.ts';
-import { creerCorps2D } from '../render/corps2d.ts';
+import { creerCorps2D, type Journal, type Molecule } from '../render/corps2d.ts';
 import { creerIlot2D } from '../render/ilot2d.ts';
 import { creerCellule2D } from '../render/cellule2d.ts';
 import { creerRein2D } from '../render/rein2d.ts';
@@ -60,6 +60,8 @@ interface Props {
   /** Agir en direct à l'heure affichée. */
   onAgir: (a: 'sucre' | 'collation' | 'repas' | 'marche' | 'effacer', minute: number) => void;
   nbAjouts: number;
+  /** Demande de suivre une molécule (depuis le panneau). */
+  demandeSuivi?: { type: Molecule; n: number } | null;
   /** Minute imposée par un voyage guidé : l'horloge s'y fige (null = la journée défile). */
   figer: number | null;
   /** Ce que la maladie ouverte montre dans cette vue. */
@@ -82,7 +84,7 @@ interface Props {
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean; /** La voix off lit aussi l'explication. */ voixDetail?: boolean }
 
-export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, onAgir, nbAjouts, figer, bandeau, siteMicroPatho, onLectureLocale, tourActif, lecture: lectureApp, onLecture: onLectureApp, site, onSite, allerA, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, onAgir, nbAjouts, demandeSuivi, figer, bandeau, siteMicroPatho, onLectureLocale, tourActif, lecture: lectureApp, onLecture: onLectureApp, site, onSite, allerA, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const petitEcran = typeof window !== 'undefined' && window.innerWidth < 700;
@@ -128,12 +130,31 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
   etatRef.current = etat;
   useEffect(() => { rendu.current?.maj(etat, etatSans); }, [etat, etatSans]);
   useEffect(() => { horloge.current.vitesse = ralenti ? 0.35 : 1; }, [ralenti]);
-  useEffect(() => {
-    if (figer !== null) { horloge.current.aller(figer); horloge.current.pause = true; }
-    else horloge.current.pause = pauseJour;
-  }, [pauseJour, figer]);
   const [menuVoyages, setMenuVoyages] = useState(false);
   const [menuAgir, setMenuAgir] = useState(false);
+  // Suivre une molécule (vue Corps) : la caméra la suit, le journal raconte chaque étape et sa raison.
+  const [suivi, setSuivi] = useState<Journal | null>(null);
+  const [attenteSuivi, setAttenteSuivi] = useState<Molecule | null>(null);
+  const lancerSuivi = (type: Molecule) => { setMenuVoyages(false); if (vue !== 'corps') onVue('corps'); setAttenteSuivi(type); };
+  useEffect(() => { if (demandeSuivi) lancerSuivi(demandeSuivi.type); }, [demandeSuivi?.n]);
+  useEffect(() => {
+    const r = rendu.current as { suivre?: (t: Molecule | null, cb?: (j: Journal) => void) => void } | null;
+    if (!attenteSuivi || !pret || vue !== 'corps' || !r?.suivre) return;
+    setSuivi({ type: attenteSuivi, lignes: [], fini: false });
+    r.suivre(attenteSuivi, (j) => setSuivi(j));
+    setAttenteSuivi(null);
+  }, [attenteSuivi, pret, vue]);
+  useEffect(() => { if (vue !== 'corps') setSuivi(null); }, [vue]);
+  const arreterSuivi = () => { (rendu.current as { suivre?: (t: null) => void } | null)?.suivre?.(null); setSuivi(null); };
+  const journalRef = useRef<HTMLOListElement>(null);
+  useEffect(() => { journalRef.current?.scrollTo({ top: 1e6, behavior: 'smooth' }); }, [suivi?.lignes.length]);
+  // Bilan du sucre dans le sang (vue Corps), mis à jour 4 fois par seconde.
+  const [bilan, setBilan] = useState<{ ra: number; foie: number; cer: number; mus: number; eff: number; uri: number; dG: number } | null>(null);
+  const vueRef = useRef(vue); vueRef.current = vue;
+  useEffect(() => {
+    if (figer !== null) { horloge.current.aller(figer); horloge.current.pause = true; }
+    else horloge.current.pause = pauseJour || (!!suivi && !suivi.fini);
+  }, [pauseJour, figer, suivi?.fini, !!suivi]);
   // Petits vaisseaux : site (rétine, rein, nerf) et démonstration des étapes de la microangiopathie.
   const [siteMicro, setSiteMicro] = useState<SiteMicro>('retine');
   useEffect(() => { if (zone === 'yeux') setSiteMicro('retine'); else if (zone === 'reins') setSiteMicro('glomerule'); else if (zone === 'nerfs' || zone === 'pieds') setSiteMicro('nerf'); }, [zone]);
@@ -182,7 +203,7 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
 
   // Boucle d'animation unique.
   useEffect(() => {
-    let raf = 0, last = performance.now(), dernierTexte = '';
+    let raf = 0, last = performance.now(), dernierTexte = '', tBilan = 0;
     let saut = 1, compteur = 0, cumulDt = 0, fenetre = 0, images = 0, retours = 0;
     const boucle = (now: number) => {
       const dtBrut = (now - last) / 1000; last = now;
@@ -204,6 +225,8 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
       if (visible.current) moteurTraces.current?.frame(i, dt, etatRef.current);
       if (captureRef.current) { const c = hote.current?.querySelector('canvas'); if (c) captureRef.current(c); }
       son.tick(i, dt);
+      tBilan += dt;
+      if (tBilan > 0.25 && vueRef.current === 'corps') { tBilan = 0; setBilan({ ra: i.Ra * 4.2, foie: i.PGE * 4.2, cer: i.Ucer * 4.2, mus: i.Uins * 4.2, eff: i.Ueff * 4.2, uri: i.Urein * 4.2, dG: i.dG }); }
       const fleche = i.dG > 15 ? '↗' : i.dG < -15 ? '↘' : '→';
       const texte = `${fmtHeure(i.heure)} · ${(i.G / 100).toFixed(2).replace('.', ',')} g/L ${fleche}`;
       if (texte !== dernierTexte && capteurRef.current) {
@@ -435,17 +458,31 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
           <Play size={13} fill="currentColor" /> Les étapes de l'atteinte
         </button>
       )}
-      {bandeau && !lecture && vue !== 'vaisseau' && vue !== 'courbe' && !nomSurvol && !(zone && !zoneDansVue(zone, vue)) && (
+      {bandeau && !lecture && !suivi && vue !== 'vaisseau' && vue !== 'courbe' && !nomSurvol && !(zone && !zoneDansVue(zone, vue)) && (
         <div className="absolute z-10 top-12 lg:top-14 left-1/2 -translate-x-1/2 w-[min(66%,460px)] rounded-xl bg-ink/88 border border-miel/40 px-3 py-1.5 text-[11.5px] sm:text-xs leading-snug text-txt pointer-events-none text-center">{bandeau}</div>
       )}
-      {vue === 'corps' && pret && (
-        <div className="absolute z-10 right-2 top-12 lg:top-14 rounded-xl bg-ink/80 border border-line px-2 py-1 text-[10.5px] space-y-0.5 pointer-events-none hidden sm:block">
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rotate-45 bg-[#f5b027]" /> Glucose</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#38bdf8]" /> Insuline</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#c084fc]" /> Glucagon</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#f472b6]" /> GLP-1 (incrétine)</div>
+      {vue === 'corps' && pret && bilan && !suivi && (
+        <div className="absolute z-10 right-2 top-12 lg:top-14 w-[196px] rounded-xl bg-ink/85 border border-line px-2.5 py-2 text-[11px] pointer-events-none hidden sm:block">
+          <div className="font-semibold text-txt mb-1">Le sucre du sang, en g/heure</div>
+          {([['Repas (intestin)', bilan.ra, '#fbbf24', 1], ['Foie', bilan.foie, '#fb923c', 1], ['Cerveau', bilan.cer, '#f9a8d4', -1], ['Muscles et graisse', bilan.mus, '#34d399', -1], ['Effort', bilan.eff, '#6ee7b7', -1], ['Urines', bilan.uri, '#fde047', -1]] as const).filter(([, v, , sens]) => v > 0.3 || sens === 1).map(([nom, v, coul, sens]) => (
+            <div key={nom} className="flex items-center gap-1.5 leading-tight py-px">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: coul }} />
+              <span className="flex-1 text-muted truncate">{nom}</span>
+              <span className="num" style={{ color: coul }}>{sens > 0 ? '+' : '−'}{Math.round(v)}</span>
+            </div>
+          ))}
+          {(() => { const ent = bilan.ra + bilan.foie, sor = bilan.cer + bilan.mus + bilan.eff + bilan.uri; const d = ent - sor; return (
+            <div className={`mt-1 pt-1 border-t border-line font-semibold ${d > 3 ? 'text-warn' : d < -3 ? 'text-accent' : 'text-ok'}`}>{d > 3 ? `↗ Il entre plus qu'il ne sort : la glycémie monte` : d < -3 ? '↘ Il sort plus qu\'il n\'entre : la glycémie baisse' : '→ Entrées ≈ sorties : glycémie stable'}</div>
+          ); })()}
+          <div className="mt-1.5 pt-1 border-t border-line grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-dim">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rotate-45 bg-[#f5b027]" />Glucose</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#38bdf8]" />Insuline</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#c084fc]" />Glucagon</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#f472b6]" />GLP-1</span>
+          </div>
         </div>
       )}
+
       {nomSurvol && (
         <div className="absolute top-12 lg:top-14 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 border border-line px-3 py-1 text-xs font-semibold pointer-events-none z-10">{nomSurvol} · cliquer pour zoomer</div>
       )}
@@ -530,6 +567,24 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
             </div>
           </div>
         </div>
+      ) : suivi ? (
+        <div className="absolute z-20 bottom-2 left-1/2 -translate-x-1/2 w-[96%] max-w-lg rounded-2xl bg-ink/94 border overflow-hidden fade-in" style={{ borderColor: suivi.type === 'glucose' ? 'rgba(245,165,36,.6)' : 'rgba(56,189,248,.6)' }} role="status" aria-live="polite">
+          <div className="px-3 pt-2 flex items-center justify-between gap-2">
+            <div className="text-[10px] uppercase tracking-wider text-dim">{suivi.fini ? 'Trajet terminé' : 'On suit'} une molécule {suivi.type === 'glucose' ? 'de glucose' : 'd\'insuline'} · {fmtHeure(horloge.current.minute / 60)}</div>
+            <button onClick={arreterSuivi} className="btn-icone w-7 h-7" aria-label="Arrêter le suivi"><X size={13} /></button>
+          </div>
+          <ol ref={journalRef} className="px-3 pb-1 max-h-[96px] lg:max-h-[132px] overflow-y-auto scroll-thin text-[12px] leading-snug space-y-1">
+            {suivi.lignes.map((l, k) => <li key={k} className={`flex gap-2 ${k === suivi.lignes.length - 1 ? 'text-txt font-semibold' : 'text-muted'}`}><span className="num text-dim shrink-0">{k + 1}.</span><span>{l}</span></li>)}
+            {!suivi.lignes.length && <li className="text-muted">Départ…</li>}
+          </ol>
+          {suivi.fini && (
+            <div className="px-3 pb-2 pt-1 flex flex-wrap gap-1.5">
+              <button onClick={() => lancerSuivi(suivi.type)} className="rounded-lg bg-miel text-ink font-bold text-[12px] px-3 py-1.5">Suivre une autre {suivi.type === 'glucose' ? 'molécule de glucose' : 'molécule d\'insuline'}</button>
+              <button onClick={() => lancerSuivi(suivi.type === 'glucose' ? 'insuline' : 'glucose')} className="rounded-lg bg-card2 border border-line font-semibold text-[12px] px-3 py-1.5">Suivre {suivi.type === 'glucose' ? 'l\'insuline' : 'le glucose'}</button>
+              <span className="text-[10.5px] text-dim self-center">Le trajet change selon l'heure, le patient et le traitement.</span>
+            </div>
+          )}
+        </div>
       ) : pret && !tourActif && (
         <>
           <button onClick={() => setMenuVoyages((v) => !v)} aria-expanded={menuVoyages} aria-label="Voyages guidés" className="absolute z-20 bottom-6 right-2 sm:bottom-7 lg:bottom-2.5 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 whitespace-nowrap rounded-full bg-miel/90 sm:bg-miel hover:brightness-110 active:scale-95 transition-transform text-ink text-[10.5px] sm:text-[12px] font-bold pl-1.5 pr-2 py-0.5 sm:pl-2.5 sm:pr-3.5 sm:py-1.5 inline-flex items-center gap-1 sm:gap-1.5 touch-manipulation before:absolute before:-inset-2.5 before:content-[''] sm:before:hidden shadow-[0_1px_6px_rgba(245,165,36,.3)] sm:shadow-[0_4px_18px_rgba(245,165,36,.45)]">
@@ -539,6 +594,14 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
             <>
               <div className="absolute inset-0 z-20" onClick={() => setMenuVoyages(false)} aria-hidden="true" />
               <div className="absolute z-30 bottom-14 right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-64 rounded-xl bg-ink/95 border border-line p-1.5 shadow-xl fade-in" role="menu" aria-label="Voyages guidés">
+                <div className="px-2.5 pt-1 pb-1 text-[10.5px] uppercase tracking-wider text-dim">Suivre une molécule (vue Corps)</div>
+                {([['glucose', '#f5a524', 'Une molécule de glucose', 'D\'où elle vient, où elle va, et pourquoi'], ['insuline', '#38bdf8', 'Une molécule d\'insuline', 'Du pancréas (ou de l\'injection) à la serrure']] as const).map(([id, coul, nom, sous]) => (
+                  <button key={id} role="menuitem" onClick={() => lancerSuivi(id)} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 active:bg-card2">
+                    <span className="w-3 h-3 rotate-45 shrink-0" style={{ background: coul }} />
+                    <span><span className="block text-[13px] font-semibold">{nom}</span><span className="block text-[11px] text-dim">{sous}</span></span>
+                  </button>
+                ))}
+                <div className="px-2.5 pt-2 pb-1 text-[10.5px] uppercase tracking-wider text-dim">Voyages commentés</div>
                 {VOYAGES.map((v) => (
                   <button key={v.id} role="menuitem" onClick={() => { setMenuVoyages(false); onVoyage(v.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 active:bg-card2">
                     <span className="w-3 h-3 rounded-full shrink-0" style={{ background: v.couleur }} />

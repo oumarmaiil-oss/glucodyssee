@@ -42,7 +42,8 @@ function Texte3({ textes, niveau }: { textes: Record<Niveau, string>; niveau: Ni
 
 // ─────────────────────────── Explorer ───────────────────────────
 
-function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone }: {
+function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre }: {
+  onSuivre: (t: 'glucose' | 'insuline') => void;
   onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; repas: Repas[]; onRepas: (r: Repas[]) => void; onZone: (z: ZoneId | null) => void;
 }) {
   const [choix, setChoix] = useState<Voyage['id']>('glucose');
@@ -53,6 +54,16 @@ function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone }: {
         <h2 className="font-display text-xl">Les voyages</h2>
         <p className="text-sm text-muted mt-1">Suivez le glucose, l'insuline ou la défense contre l'hypoglycémie, d'un organe à l'autre et d'une vue à l'autre. Touchez une étape, ou un organe dans la scène pour voir ses maladies.</p>
       </div>
+      <div className="carte p-3 space-y-2">
+        <div className="titre-section">Suivre une molécule, en direct</div>
+        <p className="text-[12px] text-muted">La caméra suit une seule molécule dans la vue Corps. Son trajet dépend de l'heure, du patient et du traitement : en type 1, la porte du muscle reste fermée ; après un repas, le foie en garde une partie…</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button onClick={() => onSuivre('glucose')} className="rounded-lg bg-miel text-ink font-bold text-[12.5px] py-2 inline-flex items-center justify-center gap-1.5"><span className="w-2.5 h-2.5 rotate-45 bg-ink/70" /> Glucose</button>
+          <button onClick={() => onSuivre('insuline')} className="rounded-lg bg-[#38bdf8] text-ink font-bold text-[12.5px] py-2 inline-flex items-center justify-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-ink/70" /> Insuline</button>
+        </div>
+        <p className="text-[11px] text-dim">Astuce : arrêtez l'horloge (bouton pause) à l'heure voulue, par exemple juste après le déjeuner, avant de lancer.</p>
+      </div>
+      <div className="titre-section">Voyages commentés</div>
       <div className="seg w-full [&>button]:flex-1" role="tablist" aria-label="Voyage">
         {VOYAGES.map((x) => <button key={x.id} role="tab" aria-selected={choix === x.id} className={choix === x.id ? 'actif' : ''} onClick={() => setChoix(x.id)}>{x.court}</button>)}
       </div>
@@ -89,17 +100,17 @@ function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone }: {
 /** Résumé court de chaque étape, pour la liste (le texte complet s'adapte au patient pendant le voyage). */
 const ETAPE_COURTE: Record<Voyage['id'], string[]> = {
   glucose: ['Le repas arrive : l\'amidon va devenir du glucose', 'Le glucose traverse la paroi de l\'intestin', 'La veine porte l\'emmène d\'abord au foie', 'Le foie en garde une partie en réserve', 'Le reste passe dans le sang : la glycémie monte', 'Le pancréas sent le sucre monter', 'Les cellules bêta libèrent l\'insuline', 'L\'insuline ouvre les portes des muscles', 'Le tissu gras stocke aussi le surplus', 'Le cerveau consomme du sucre, sans insuline', 'Les reins filtrent le sang et récupèrent le sucre', 'Le sucre colle à l\'hémoglobine : c\'est l\'HbA1c'],
-  insuline: ['Les cellules bêta détectent le sucre', 'Elles libèrent l\'insuline (canaux K-ATP)', 'L\'insuline part d\'abord vers le foie', 'Le foie en garde environ la moitié', 'Le reste circule dans tout le corps', 'Sur le muscle, la clé ouvre la porte GLUT4', 'Sur la graisse, elle fait stocker', 'Dans l\'îlot, elle freine le glucagon', 'Le foie et le rein la détruisent en quelques minutes'],
+  insuline: ['Fabriquée et stockée en grains (avec le peptide C)', 'Le glucose entre dans la cellule bêta', 'Les canaux K-ATP se ferment : les grains partent', 'Deux vagues : rapide, puis prolongée', 'Elle part d\'abord vers le foie', 'Le foie en garde environ la moitié', 'Le reste circule dans tout le corps', 'Elle se fixe sur le récepteur du muscle', 'Les portes GLUT4 montent : le glucose entre', 'Sur la graisse, elle fait stocker', 'Dans l\'îlot, elle freine le glucagon', 'Le foie et le rein la détruisent en quelques minutes'],
   defense: ['Le sucre descend sous 0,70 g/L', 'Les cellules bêta s\'arrêtent (sauf sous sulfamide)', 'Les cellules alpha libèrent le glucagon', 'Le foie vide ses réserves', 'Le cerveau souffre en premier', 'Règle des 15 : 15 g de sucre'],
 };
 
-export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue }: {
+export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue, onSuivre }: {
   zone: ZoneId | null; niveau: Niveau; vue: Vue; actives: PathoActive[]; repas: Repas[]; onRepas: (r: Repas[]) => void;
-  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void;
+  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; onSuivre: (t: 'glucose' | 'insuline') => void;
   onZone: (z: ZoneId | null) => void; onTogglePatho: (id: string) => void; onVue: (v: Vue) => void; onVoirPatho: (id: string) => void;
 }) {
   if (!zone) {
-    return <AccueilExplorer onVoyage={onVoyage} onVoirVue={onVoirVue} repas={repas} onRepas={onRepas} onZone={onZone} />;
+    return <AccueilExplorer onSuivre={onSuivre} onVoyage={onVoyage} onVoirVue={onVoirVue} repas={repas} onRepas={onRepas} onZone={onZone} />;
   }
   const z = ZONES[zone];
   const idx = VOYAGE_Z.indexOf(zone);

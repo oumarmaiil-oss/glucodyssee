@@ -4,7 +4,7 @@
  * muscles, le cerveau, la graisse ; il déborde dans les urines au-dessus du seuil rénal.
  * L'insuline (points bleus) sort du pancréas ou du site d'injection. Les flux viennent du moteur, minute par minute.
  */
-import { clamp, COUL, creerScene2D, hexagone, lerp, mix, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
+import { cle, clamp, COUL, creerScene2D, hexagone, lerp, mix, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
 import type { Instant } from '../core/clock.ts';
 import { effetsVisibles } from '../core/effets.ts';
 
@@ -46,6 +46,19 @@ const GLP1 = chemin([[300, 470], [316, 440], [330, 412], [336, 396]]);
 const GLUCAGON = chemin([[318, 394], [290, 400], [270, 395], [258, 372], [244, 350]]);
 const URINE = [chemin([[232, 432], [252, 500], [292, 572]]), chemin([[376, 432], [352, 500], [308, 572]])];
 
+// Trajets de la molécule suivie.
+const T_REPAS = chemin([[356, 344], [336, 372], [310, 420], [300, 452], [300, 480]]);
+const T_INTESTIN_FOIE = chemin([[300, 480], [282, 450], [270, 410], [258, 372], [244, 348]]);
+const T_FOIE_COEUR = chemin([[244, 348], [276, 312], [300, 280], COEUR]);
+const T_PANC_FOIE = chemin([[336, 394], [300, 400], [270, 395], [258, 372], [244, 348]]);
+const moitie = (c: Chemin, aller: boolean) => { const n = c.pts.length, mi = Math.floor(n / 2); return chemin(aller ? c.pts.slice(0, mi + 1) : c.pts.slice(mi)); };
+const ARTERES = BOUCLES.map((b) => moitie(b.c, true));
+const VEINES = BOUCLES.map((b) => moitie(b.c, false));
+const NOMS_ORGANES: Record<Organe, string> = { cerveau: 'le cerveau', muscles: 'les muscles des jambes', reins: 'les reins', graisse: 'le tissu gras', foie: 'le foie' };
+
+export type Molecule = 'glucose' | 'insuline';
+export interface Journal { type: Molecule; lignes: string[]; fini: boolean }
+
 const REGIONS: Region[] = [
   { z: 'yeux', x: 270, y: 66, w: 60, h: 28 },
   { z: 'globules', x: 46, y: 236, w: 128, h: 128 },
@@ -66,7 +79,7 @@ const REGIONS: Region[] = [
 
 interface Particule { b: number; s: number; o: number; abs?: boolean }
 
-export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Rendu {
+export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Rendu & { suivre(type: Molecule | null, onJournal?: (j: Journal) => void): void } {
   const leger = !!opt.leger;
   const sang: Particule[] = [];
   const absP: { s: number; o: number }[] = [];
@@ -74,16 +87,98 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
   const urine: { k: number; s: number }[] = [];
   const horm: { c: Chemin; s: number; o: number; coul: string }[] = [];
   let accGlp = 0, accGlu = 0;
-  let vessie = 0; // remplissage visuel de la vessie en glucose
+  let vessie = 0;
+  // ── Molécule suivie : son trajet dépend de l'état du patient à l'heure affichée. ──
+  let tr: { type: Molecule; c: Chemin | null; s: number; attente: number; lignes: string[]; fini: boolean; boucles: number; apres: ((i: Instant, e: NonNullable<Contexte['etat']>) => void) | null; traine: Pt[]; pt: Pt; onJ?: (j: Journal) => void } | null = null;
+  const dire = (texte: string) => { if (!tr) return; tr.lignes.push(texte); tr.onJ?.({ type: tr.type, lignes: [...tr.lignes], fini: tr.fini }); };
+  const finir = (texte: string) => { if (!tr) return; tr.fini = true; tr.c = null; tr.apres = null; dire(texte); };
+  const aller = (c: Chemin, texte: string | null, apres: (i: Instant, e: NonNullable<Contexte['etat']>) => void) => { if (!tr) return; tr.c = c; tr.s = 0; tr.apres = apres; tr.attente = 0.9; if (texte) dire(texte); };
+  const gh = (x: number) => `${(x * 4.2).toFixed(1).replace('.', ',')} g/h`;
+  const gl = (mg: number) => `${(mg / 100).toFixed(2).replace('.', ',')} g/L`;
+  const porte = (i: Instant, e: NonNullable<Contexte['etat']>) => clamp((i.I / (i.I + 40)) * e.terrain.si * ((e.traitement.metformine ?? 0) > 0 ? 1.25 : 1) * 1.3 + (i.effort ? 0.5 : 0), 0, 0.97);
+  const alea = () => Math.random();
+  function auCoeurGlucose(i: Instant, e: NonNullable<Contexte['etat']>) {
+    if (!tr) return;
+    if (tr.boucles >= 3) { finir(`Elle tourne encore dans le sang après ${tr.boucles} tours : c'est ce qui arrive quand la glycémie reste haute (${gl(i.G)}).`); return; }
+    const w = [i.Ucer, (i.Uins * 0.75 + i.Ueff) / 2, (i.Uins * 0.75 + i.Ueff) / 2, 0.25, 0.25, i.Uins * 0.25 + 0.02, 0];
+    const tot = w.reduce((a, b) => a + b, 0); let r = alea() * tot, b = 0; while (b < w.length - 1 && r > w[b]) { r -= w[b]; b++; }
+    const org = BOUCLES[b].org;
+    aller(ARTERES[b], `Le cœur l'envoie par les artères vers ${NOMS_ORGANES[org]}.`, (i2, e2) => arriveeOrgane(b, i2, e2));
+  }
+  function retour(b: number, texte: string) { if (!tr) return; tr.boucles++; aller(VEINES[b], texte, auCoeurGlucose); }
+  function arriveeOrgane(b: number, i: Instant, e: NonNullable<Contexte['etat']>) {
+    const org = BOUCLES[b].org;
+    if (org === 'cerveau') { finir(`Elle entre dans le cerveau, sans avoir besoin d'insuline : elle sert de carburant aux neurones (le cerveau en consomme ≈ 120 g par jour).`); return; }
+    if (org === 'muscles' || org === 'graisse') {
+      const p = porte(i, e) * (org === 'graisse' ? 0.8 : 1);
+      if (alea() < p) finir(i.effort && org === 'muscles' ? 'Elle entre dans le muscle : l\'effort a fait monter des portes GLUT4, même sans beaucoup d\'insuline.' : `Elle entre dans ${org === 'muscles' ? 'le muscle' : 'la cellule graisseuse'} : l'insuline (${Math.round(i.I)} µU/mL) a fait monter une porte GLUT4.${org === 'muscles' ? ' Elle sera brûlée ou stockée en glycogène.' : ' Elle sera stockée.'}`);
+      else retour(b, e.terrain.type === 't1' && i.I < 5 ? 'Porte fermée : il n\'y a pas d\'insuline (type 1 sans injection). Elle repart dans le sang par les veines.' : e.terrain.si < 0.6 ? 'Porte fermée : la serrure est grippée (résistance à l\'insuline). Elle repart dans le sang par les veines.' : `Porte fermée : trop peu d'insuline à cette heure (${Math.round(i.I)} µU/mL). Elle repart dans le sang par les veines.`);
+      return;
+    }
+    if (org === 'reins') {
+      const filtre = (i.G * 1.25 * e.terrain.rein) / 70;
+      const pu = clamp(i.Urein / Math.max(0.01, filtre), 0, 1);
+      if (alea() < pu * 3) { aller(URINE[b === 3 ? 0 : 1], `Filtrée par le rein, mais SGLT2 ne peut pas tout reprendre (glycémie ${gl(i.G)}, au-dessus du seuil${(e.traitement.isglt2 ?? 0) > 0 ? ' abaissé par l\'iSGLT2' : ''}).`, () => finir('Elle part dans les urines : c\'est la glycosurie (elle entraîne de l\'eau : soif, urines abondantes).')); }
+      else retour(b, 'Filtrée par le rein, puis reprise par le transporteur SGLT2 : retour dans le sang.');
+    }
+  }
+  function auCoeurInsuline(etape: number) {
+    // 0 : vers les muscles ; 1 : vers le rein (destruction).
+    const b = etape === 0 ? (alea() < 0.5 ? 1 : 2) : 3;
+    aller(ARTERES[b], etape === 0 ? 'Le cœur l\'envoie vers les muscles des jambes.' : 'Elle repasse par le cœur, puis arrive au rein.', (i, e) => {
+      if (etape === 0) {
+        const res = e.terrain.si < 0.6;
+        dire(res ? 'Elle se fixe sur un récepteur du muscle, mais la cascade à l\'intérieur répond mal (résistance) : peu de portes GLUT4 montent.' : 'Elle se fixe sur un récepteur du muscle : le signal (IRS → PI3K → Akt) fait monter les portes GLUT4, le glucose entre.');
+        aller(VEINES[b], 'Elle se détache et repart dans le sang.', () => auCoeurInsuline(1));
+      } else finir('Le rein la capte et la détruit : l\'insuline ne dure que quelques minutes dans le sang, d\'où une libération permanente par le pancréas.');
+    });
+  }
+  function demarrer(type: Molecule, i: Instant, e: NonNullable<Contexte['etat']>) {
+    if (!tr) return;
+    if (type === 'glucose') {
+      if (i.Ra > 0.3) {
+        aller(T_REPAS, `${i.repas ? `Avalée avec le ${i.repas.toLowerCase()}` : 'Avalée avec le repas'} : l'amidon a été coupé en glucose dans l'intestin.`, () =>
+          aller(T_INTESTIN_FOIE, `Elle traverse la paroi de l'intestin (repas : ${gh(i.Ra)} de glucose qui entrent) et prend la veine porte vers le foie.`, (i2, e2) => {
+            const stock = clamp((i2.I - 15) / 50, 0, 1) * 0.55 * e2.terrain.sl;
+            if (alea() < stock) finir(`Le foie la garde et la stocke en glycogène : l'insuline (${Math.round(i2.I)} µU/mL) lui dit de faire des réserves.`);
+            else aller(T_FOIE_COEUR, 'Le foie la laisse passer : elle rejoint le cœur par la veine cave.', auCoeurGlucose);
+          }));
+      } else {
+        tr.pt = [244, 348];
+        aller(T_FOIE_COEUR, `Pas de repas en cours : elle a été fabriquée par le foie (${gh(i.PGE)})${e.terrain.sl < 0.6 ? ', qui résiste à l\'insuline et produit trop' : ''}. Elle rejoint le cœur.`, auCoeurGlucose);
+      }
+    } else {
+      if (i.S > 0.3) {
+        aller(T_PANC_FOIE, `Une cellule bêta la libère (glycémie ${gl(i.G)}) en même temps que le peptide C. Elle part dans la veine porte, droit vers le foie.`, () => {
+          if (alea() < 0.5) finir('Le foie la capte dès son premier passage (il en garde environ la moitié) : elle lui fait stocker le sucre et arrêter d\'en fabriquer.');
+          else aller(T_FOIE_COEUR, 'Le foie la laisse passer : elle rejoint le cœur.', () => auCoeurInsuline(0));
+        });
+      } else if (e.injections.length) {
+        aller(INS_INJ, 'Elle vient d\'une injection sous la peau : elle entre dans le sang sans passer d\'abord par le foie.', () => auCoeurInsuline(0));
+      } else finir(e.terrain.beta < 0.05 ? 'Rien à suivre : plus de cellules bêta (type 1) et aucune injection. Sans insuline, le sucre ne peut pas entrer dans les muscles.' : `Rien à suivre à cette heure : le sucre est bas (${gl(i.G)}), le pancréas ne libère presque pas d'insuline. Choisissez une heure après un repas.`);
+    }
+  }
+ // remplissage visuel de la vessie en glucose
   const glow = { cerveau: 0, muscles: 0, reins: 0, graisse: 0, foie: 0 };
   let spawnAbs = 0, spawnFoie = 0, spawnIns = 0, spawnUr = 0;
   const tire = () => { const r = Math.random(); let a = 0; for (let k = 0; k < BOUCLES.length; k++) { a += BOUCLES[k].poids; if (r <= a) return k; } return 0; };
 
   function avancer(c: Contexte, i: Instant, dt: number) {
     const e = c.etat; if (!e) return;
+    if (tr && !tr.fini) {
+      if (!tr.c && !tr.apres && tr.lignes.length === 0) demarrer(tr.type, i, e);
+      else if (tr.c) {
+        if (tr.attente > 0) tr.attente -= dt;
+        else {
+          tr.s += (85 * dt) / tr.c.len;
+          if (tr.s >= 1) { tr.s = 1; const f = tr.apres; tr.pt = at(tr.c, 1); tr.c = null; tr.apres = null; f?.(i, e); }
+        }
+      }
+      if (tr && tr.c) { tr.pt = at(tr.c, tr.s); tr.traine.push(tr.pt); if (tr.traine.length > 40) tr.traine.shift(); }
+    }
     const k = leger ? 0.55 : 1;
     // Densité du sucre dans le sang : proportionnelle à la glycémie de l'instant.
-    const cible = Math.round(clamp(i.G, 30, 450) * 0.55 * k);
+    const cible = Math.round(clamp(i.G, 30, 450) * 0.32 * k);
     const v = 150;
     // Sources : intestin (repas) et foie.
     spawnAbs += i.Ra * 9 * k * dt * 4;
@@ -120,15 +215,15 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     vessie = Math.max(0, vessie - dt * 0.03);
     for (const o of Object.keys(glow) as Organe[]) glow[o] = Math.max(0, glow[o] - dt * 0.6);
     // Hormones : GLP-1 libéré par l'intestin au repas (renforcé par les iDPP-4) ; glucagon quand le sucre baisse.
-    const tr = e.traitement;
-    accGlp += (i.Ra / (i.Ra + 3)) * (e.terrain.inc + ((tr.idpp4 ?? 0) > 0 ? 0.8 : 0)) * 10 * k * dt;
+    const trt = e.traitement;
+    accGlp += (i.Ra / (i.Ra + 3)) * (e.terrain.inc + ((trt.idpp4 ?? 0) > 0 ? 0.8 : 0)) * 10 * k * dt;
     while (accGlp >= 1) { accGlp -= 1; horm.push({ c: GLP1, s: 0, o: Math.random() - 0.5, coul: '#f472b6' }); }
     accGlu += clamp(i.glucagon - 0.6, 0, 3) * 9 * k * dt;
     while (accGlu >= 1) { accGlu -= 1; horm.push({ c: GLUCAGON, s: 0, o: Math.random() - 0.5, coul: '#c084fc' }); }
     for (const h of horm) h.s += (90 * dt) / h.c.len;
     for (let j = horm.length - 1; j >= 0; j--) if (horm[j].s >= 1) horm.splice(j, 1);
     // Insuline : densité proportionnelle à l'insuline du sang ; source pancréas ou site d'injection.
-    const cibleIns = Math.round(clamp(i.I, 0, 120) * 0.45 * k);
+    const cibleIns = Math.round(clamp(i.I, 0, 120) * 0.3 * k);
     spawnIns += (i.S * 1.6 + (i.injection ? 6 : 0)) * k * dt;
     while (spawnIns >= 1 && ins.length < cibleIns + 6) { spawnIns -= 1; ins.push({ c: i.S > 0.3 || !i.injection ? INS_PANC : INS_INJ, b: tire(), s: 0, o: Math.random() - 0.5, vie: 6 + Math.random() * 6 }); }
     if (spawnIns > 3) spawnIns = 3;
@@ -259,6 +354,28 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
       if (c.labels || c.choisi === 'globules') texte(`HbA1c ${e ? e.stats.hba1c.toFixed(1).replace('.', ',') : '–'} %`, x0, y0 + r + 14);
     }
 
+    // Flèches de flux : épaisseur selon la quantité de glucose qui passe (g/heure, adulte de 70 kg).
+    {
+      const fleche = (cc: Chemin, flux: number, coul: string, label0: string | null, lx?: number, ly?: number) => {
+        if (flux < 0.02) return;
+        const label = tr ? null : label0;
+        const w = 1.5 + Math.min(9, flux * 2.6);
+        g.save(); g.strokeStyle = coul; g.globalAlpha = 0.55; g.lineWidth = w; g.lineCap = 'round'; g.setLineDash([10, 9]); g.lineDashOffset = -temps * 40;
+        g.beginPath(); g.moveTo(...cc.pts[0]); for (const q of cc.pts.slice(1)) g.lineTo(...q); g.stroke(); g.restore();
+        const [x1, y1] = at(cc, 0.97), [x2, y2] = at(cc, 1); const a = Math.atan2(y2 - y1, x2 - x1);
+        g.fillStyle = coul; g.beginPath(); g.moveTo(x2 + Math.cos(a) * 6, y2 + Math.sin(a) * 6); g.lineTo(x2 + Math.cos(a + 2.5) * (6 + w), y2 + Math.sin(a + 2.5) * (6 + w)); g.lineTo(x2 + Math.cos(a - 2.5) * (6 + w), y2 + Math.sin(a - 2.5) * (6 + w)); g.closePath(); g.fill();
+        if (label) { const [mx, my] = at(cc, 0.5); texte(label, lx ?? mx, ly ?? my, coul, 11); }
+      };
+      const v = (x: number) => `${(x * 4.2).toFixed(0)} g/h`;
+      fleche(T_INTESTIN_FOIE, i.Ra, '#fbbf24', i.Ra > 0.05 ? `Repas +${v(i.Ra)}` : null, 196, 432);
+      fleche(T_FOIE_COEUR, i.PGE, '#fb923c', `Foie +${v(i.PGE)}`, 214, 300);
+      fleche(ARTERES[0], i.Ucer, '#f9a8d4', `Cerveau −${v(i.Ucer)}`, 372, 150);
+      const musc = i.Uins * 0.75 + i.Ueff;
+      fleche(ARTERES[1], musc / 2, '#34d399', `Muscles −${v(musc)}`, 170, 700);
+      fleche(ARTERES[2], musc / 2, '#34d399', null);
+      fleche(ARTERES[5], i.Uins * 0.25, '#a3e635', `Graisse −${v(i.Uins * 0.25)}`, 470, 520);
+      if (i.Urein > 0.02) { fleche(URINE[0], i.Urein / 2, '#fde047', `Urines −${v(i.Urein)}`, 196, 540); fleche(URINE[1], i.Urein / 2, '#fde047', null); }
+    }
     // Particules : glucose absorbé, glucose du sang, insuline.
     for (const p of absP) { const [x, y] = at(ABS, p.s); hexagone(g, x + p.o * 4, y, 3); }
     for (const p of sang) { const [x, y] = at(BOUCLES[p.b].c, p.s); hexagone(g, x + p.o * 4, y + p.o * 2, 3); }
@@ -276,6 +393,7 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     }
 
     // Messages.
+    if (!tr) {
     if (hypo) texte('Hypoglycémie : le cerveau manque de sucre', 300, 132, '#d6b4ff');
     if (i.Urein > 0.05) texte('Sucre dans les urines', 300, 612, '#fde68a');
     if (faim) texte('Muscles affamés : le sucre n\'entre pas', 300, 790, '#d6b4ff');
@@ -296,6 +414,16 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     if (t?.type === 'gestationnel') texte('Grossesse : les hormones du placenta gênent l\'insuline', 300, 452, '#f9a8d4');
     if (t?.ramadan && i.heure > 5.5 && i.heure < 19.5) texte('Ramadan : jeûne jusqu\'au ndogu', 452, 300, '#fde68a');
 
+    }
+    // Molécule suivie.
+    if (tr) {
+      const [x, y] = tr.pt; const coul = tr.type === 'glucose' ? '#fbbf24' : '#38bdf8';
+      for (let k = 0; k < tr.traine.length; k++) { const q = tr.traine[k]; g.fillStyle = coul; g.globalAlpha = (k / tr.traine.length) * 0.5; g.beginPath(); g.arc(q[0], q[1], 3, 0, 7); g.fill(); }
+      g.globalAlpha = 1;
+      g.strokeStyle = coul; g.lineWidth = 2; g.globalAlpha = 0.35 + 0.3 * Math.abs(Math.sin(temps * 4)); g.beginPath(); g.arc(x, y, 16, 0, 7); g.stroke(); g.globalAlpha = 1;
+      if (tr.type === 'glucose') hexagone(g, x, y, 8, coul); else cle(g, x, y, 7, 0, coul);
+      texte(tr.type === 'glucose' ? 'Glucose suivi' : 'Insuline suivie', x, y - 28, coul, 11);
+    }
     if (c.labels) {
       texte('Cerveau', 300, 14); texte('Cœur', 372, 262); texte('Foie', 196, 360); texte('Estomac', 412, 344); texte('Pancréas', 350, 372);
       texte('Intestin', 300, 540); texte('Veine porte', 210, 410); texte('Reins', 232, 462); texte('Graisse', 440, 470); texte('Muscles', 300, 660);
@@ -304,8 +432,16 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     void G;
   }
 
-  return creerScene2D(conteneur, opt, {
+  const base = creerScene2D(conteneur, opt, {
     W, H, regions: REGIONS, dessiner, avancer, sMax: 5,
     repli: { ilot: 'pancreas' },
+    suivi: () => (tr && !tr.fini ? tr.pt : null),
   });
+  return {
+    ...base,
+    suivre(type, onJournal) {
+      tr = type ? { type, c: null, s: 0, attente: 0, lignes: [], fini: false, boucles: 0, apres: null, traine: [], pt: [356, 344], onJ: onJournal } : null;
+      if (!type) base.focus(null);
+    },
+  };
 }

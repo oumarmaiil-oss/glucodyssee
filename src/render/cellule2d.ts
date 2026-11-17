@@ -92,6 +92,23 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
     for (const p of entres) hexagone(g, p.x, p.y, 3.4);
     for (const p of sortants) hexagone(g, p.x, p.y, 3.4);
 
+    // Cascade de signalisation sous les deux premiers récepteurs : IRS → PI3K → Akt → GLUT4.
+    if (!foie) {
+      const res = (t?.si ?? 1) < 0.6;
+      const nCl = Math.round(ins * N_REC * 1.2);
+      for (const [k, x] of RECEPTEURS.slice(0, 2).entries()) {
+        const actif = k < nCl;
+        const pts: [number, number, string][] = [[x, MEMB + 52, 'IRS'], [x + 26, MEMB + 92, 'PI3K'], [x + 52, MEMB + 132, 'Akt']];
+        g.strokeStyle = actif ? (res ? 'rgba(251,191,36,.55)' : 'rgba(110,231,183,.8)') : 'rgba(148,163,184,.3)'; g.lineWidth = 2; g.setLineDash(res ? [4, 5] : []);
+        g.beginPath(); g.moveTo(x, MEMB + 26); for (const [px, py] of pts) g.lineTo(px, py); g.lineTo(glut[k].x, lerp(MEMB + 120, MEMB, glut[k].pos)); g.stroke(); g.setLineDash([]);
+        for (const [px, py, nom] of pts) {
+          g.fillStyle = actif ? (res ? 'rgba(251,191,36,.85)' : '#6ee7b7') : 'rgba(148,163,184,.5)'; g.beginPath(); g.arc(px, py, 6, 0, 7); g.fill();
+          if (c.labels || k === 0) { g.fillStyle = '#e9eef8'; g.font = '600 10px "Plus Jakarta Sans", system-ui'; g.textAlign = 'left'; g.fillText(nom, px + 9, py + 3); }
+        }
+        if (actif && !res) { const u = (temps * 0.7 + k * 0.3) % 1; const seg = Math.min(2, Math.floor(u * 3)); const [ax, ay] = seg === 0 ? [x, MEMB + 26] : [pts[seg - 1][0], pts[seg - 1][1]]; const [bx, by] = [pts[seg][0], pts[seg][1]]; const f = u * 3 - seg; g.fillStyle = '#fff'; g.beginPath(); g.arc(lerp(ax, bx, f), lerp(ay, by, f), 3, 0, 7); g.fill(); }
+      }
+      if (res && nCl > 0) texte('La cascade répond mal : le signal se perd avant GLUT4', 360, MEMB + 150, '#fde68a', 11);
+    }
     if (foie) {
       // Glycogène : grappes de grains.
       const n = Math.round(6 + glycogene * 40);
@@ -104,7 +121,7 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
     } else {
       if (porte > 0.55) texte('Clé dans la serrure : les portes GLUT4 montent, le sucre entre', W / 2, H - 30, '#6ee7b7');
       else if (i.G > 150) texte('Peu de portes ouvertes : le sucre reste dans le sang', W / 2, H - 30, '#fbbf24');
-      if ((t?.si ?? 1) < 0.6) texte('Type 2 : serrures grippées (résistance à l\'insuline)', W / 2, MEMB + 80, '#fde68a');
+      if ((t?.si ?? 1) < 0.6) texte(t?.type === 't2' ? 'Type 2 : serrures grippées (résistance à l\'insuline)' : 'Résistance à l\'insuline : serrures un peu grippées', 470, MEMB + 80, '#fde68a');
       if (i.effort) texte('Effort : les portes s\'ouvrent aussi sans insuline (voie AMPK)', W / 2, 40, '#6ee7b7');
       else if (fx.insulineInjectee) texte('Insuline injectée : des clés en plus', W / 2, 40, '#7dd3fc');
       if (t?.type === 't1' && ins < 0.1) texte('Type 1 : pas de clé, les portes restent fermées', W / 2, 40, '#fca5a5');
