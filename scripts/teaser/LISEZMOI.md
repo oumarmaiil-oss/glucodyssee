@@ -37,3 +37,12 @@ Environ 50 secondes de fabrication.
 3. `ffmpeg -i tiktok3-video.mp4 -i musique30v.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart glucodyssee-3-situations-30s-vertical.mp4`
 
 Résultat publié : `docs/videos/glucodyssee-3-situations-30s-vertical.mp4`.
+
+## Version verticale de 20 secondes (recommandée)
+
+Même trio, plus lisible : une carte plein écran « 1/3, 2/3, 3/3 » entre les cas (le changement se fait derrière),
+une seule phrase à la fois, un seul geste par cas.
+
+1. `node tiktok20.cjs` → `tiktok20-video.mp4`
+2. `DUREE=20 T_PULSE=0.8 T_ARP=0.4 T_IMP=2.0 T_FIN=17.2 python3 musique.py musique20.wav`
+3. Assemblage ffmpeg comme ci-dessus → `docs/videos/glucodyssee-3-situations-20s-vertical.mp4`.
