@@ -11,7 +11,7 @@ body:
     attributes:
       label: Où ?
       description: Vue, maladie, traitement ou présentation concernée.
-      placeholder: "Ex. : Parcours › Le diabète de type 2 › étape 4 ; ou Simulateur, scénario Ramadan"
+      placeholder: "Ex. : Maladies › Diabète de type 2 › fiche, niveau Approfondir"
     validations:
       required: true
   - type: textarea
@@ -30,6 +30,6 @@ body:
     id: source
     attributes:
       label: Source
-      description: Recommandation (ESC, ESH…), essai, RCP, manuel. Indispensable pour corriger.
+      description: Recommandation (ADA, IDF, KDIGO…), essai, RCP, manuel. Indispensable pour corriger.
     validations:
       required: true

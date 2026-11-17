@@ -1,59 +1,87 @@
 @import "tailwindcss";
 
-/* Même famille visuelle qu'Hémodyssée ; couleur propre : le miel (le sucre). */
 @theme {
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-display: "Fraunces", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --color-fond: #0e0c0a;
-  --color-panel: #15120f;
-  --color-card: #1c1813;
-  --color-card2: #28221a;
-  --color-line: rgba(214, 196, 168, 0.14);
-  --color-line-fort: rgba(214, 196, 168, 0.32);
-  --color-txt: #f2ece3;
-  --color-muted: #c4b8a6;
-  --color-dim: #9a8f7f;
-  --color-miel: #f0a832;
-  --color-insuline: #7aa2ff;
-  --color-ok: #4cc38a;
-  --color-alert: #ff6b6b;
-  --color-cible-fond: rgba(76, 195, 138, 0.12);
-  --color-fantome: #7d7468;
-  --color-corps: #3a3129;
-  --color-cerveau: #c9a3b8;
-  --color-foie: #9b4a3c;
-  --color-estomac: #c98a6b;
-  --color-pancreas: #e2c27a;
-  --color-rein: #a85a4a;
-  --color-intestin: #d4a07e;
-  --color-muscle: #c0514f;
-  --color-graisse: #f3d38a;
-  --color-sang: #e0414e;
+  --color-ink: #070a12;
+  --color-panel: #0d1220;
+  --color-card: #131a2c;
+  --color-card2: #1a2340;
+  --color-line: rgba(148, 163, 184, 0.16);
+  --color-txt: #e9eef8;
+  --color-muted: #a4b1c7;
+  --color-dim: #7f8ba3;
+  --color-miel: #f5a524;
+  --color-insuline: #38bdf8;
+  --color-ok: #34d399;
+  --color-warn: #fbbf24;
+  --color-alert: #fb7185;
+  --color-accent: #7dd3fc;
 }
 
-html, body, #root { min-height: 100%; background: var(--color-fond); color: var(--color-txt); }
+html, body, #root { height: 100%; background: var(--color-ink); color: var(--color-txt); }
 body { overflow-x: hidden; font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible, select:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--color-miel); outline-offset: 2px; }
-.scroll-thin { scrollbar-width: thin; scrollbar-color: rgba(214,196,168,.3) transparent; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.3) transparent; }
+input[type="range"] { accent-color: var(--color-miel); width: 100%; }
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 @keyframes fadein { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
 .fade-in { animation: fadein .25s ease-out; }
-@media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
 
 @layer components {
-  .btn-icone { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(14,12,10,.8); border: 1px solid var(--color-line); color: var(--color-muted); touch-action: manipulation; transition: transform .12s, color .15s, border-color .15s; }
-  .btn-icone:hover { color: var(--color-txt); border-color: var(--color-line-fort); }
+  .btn-icone { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: rgba(7,10,18,.8); border: 1px solid var(--color-line); color: var(--color-muted); }
+  .btn-icone:hover { color: var(--color-txt); border-color: rgba(148,163,184,.35); }
+  .btn-icone { touch-action: manipulation; transition: transform .12s, color .15s, border-color .15s; }
   .btn-icone:active { transform: scale(.92); }
-  @media (pointer: coarse) { .btn-icone { position: relative; } .btn-icone::after { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); } }
-  .btn-icone.actif { color: #fff; background: rgba(240,168,50,.25); border-color: rgba(240,168,50,.6); }
-  .puce { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-card); font-size: 12.5px; font-weight: 600; color: var(--color-muted); touch-action: manipulation; }
-  .puce:hover { color: var(--color-txt); border-color: var(--color-line-fort); }
-  .puce.actif { color: #fff; background: rgba(240,168,50,.2); border-color: rgba(240,168,50,.65); }
+  /* Écran tactile : zone de toucher de 44 px autour des petits boutons, sans changer leur aspect. */
+  @media (pointer: coarse) {
+    .btn-icone { position: relative; }
+    .btn-icone::after { content: ''; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+  }
+  .btn-icone.actif { color: #fff; background: rgba(245,165,36,.22); border-color: rgba(245,165,36,.6); }
+  .btn-outil { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 9px; border-radius: 10px; background: rgba(7,10,18,.82); border: 1px solid var(--color-line); color: var(--color-muted); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  @media (max-width: 639px) { .btn-outil { padding: 0 7px; gap: 4px; } }
+  @media (max-width: 379px) { .btn-outil { padding: 0 4px; } .seg button { padding: 5px 8px; } }
+  .btn-outil:hover { color: var(--color-txt); border-color: rgba(148,163,184,.35); }
+  .btn-outil.actif { color: #fff; background: rgba(245,165,36,.22); border-color: rgba(245,165,36,.6); }
+  .puce { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-card); font-size: 12.5px; font-weight: 600; color: var(--color-muted); }
+  .puce:hover { color: var(--color-txt); border-color: rgba(148,163,184,.35); }
+  .puce.actif { color: #fff; background: rgba(245,165,36,.2); border-color: rgba(245,165,36,.65); }
+  .puce.trt.actif { background: rgba(52,211,153,.18); border-color: rgba(52,211,153,.6); }
   .carte { background: var(--color-card); border: 1px solid var(--color-line); border-radius: 14px; }
   .titre-section { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--color-dim); }
-  .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 12px; background: var(--color-fond); border: 1px solid var(--color-line); }
-  .seg button { min-width: 36px; min-height: 34px; padding: 5px 9px; border-radius: 9px; font-size: 12.5px; font-weight: 600; color: var(--color-muted); }
-  .seg button.actif { background: var(--color-miel); color: var(--color-fond); }
+  .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 12px; background: var(--color-card); border: 1px solid var(--color-line); }
+  .seg button { padding: 5px 11px; border-radius: 9px; font-size: 12.5px; font-weight: 600; color: var(--color-muted); }
+  .seg button.actif { background: var(--color-card2); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,.06) inset; }
 }
+
+/* Téléphone à l'horizontale : l'en-tête défile avec la page pour laisser la place à la scène. */
+@media (max-height: 500px) {
+  header.sticky { position: static; }
+}
+
+/* Fiche imprimable (ou PDF) : seule la fiche est imprimée. */
+#fiche-impression { display: none; }
+@media print {
+  @page { margin: 14mm; }
+  html, body { background: #fff !important; color: #111 !important; height: auto !important; overflow: visible !important; }
+  body > *:not(#fiche-impression) { display: none !important; }
+  #fiche-impression { display: block; font: 10.5pt/1.45 system-ui, sans-serif; color: #111; }
+  #fiche-impression h1 { font-size: 17pt; margin: 0; }
+  #fiche-impression .sous { color: #555; margin: 2pt 0 10pt; }
+  #fiche-impression h2 { font-size: 12pt; margin: 12pt 0 4pt; border-bottom: 1px solid #ccc; padding-bottom: 2pt; }
+  #fiche-impression h3 { font-size: 10.5pt; margin: 6pt 0 2pt; }
+  #fiche-impression ul { margin: 0; padding-left: 14pt; list-style: disc; }
+  #fiche-impression h1, #fiche-impression h2, #fiche-impression h3, #fiche-impression th { font-weight: 700; }
+  #fiche-impression table { border-collapse: collapse; width: 100%; }
+  #fiche-impression th, #fiche-impression td { border: 1px solid #ccc; padding: 3pt 6pt; text-align: left; }
+  #fiche-impression th { background: #f2f2f2; }
+  #fiche-impression .pied { margin-top: 16pt; font-size: 8.5pt; color: #666; }
+}
+
+/* Astuce 3D : un doigt qui glisse de gauche à droite. */
+@keyframes astuce-glisse { 0%, 15% { transform: translateX(-14px); opacity: 0; } 30% { opacity: 1; } 75% { transform: translateX(14px); opacity: 1; } 100% { transform: translateX(14px); opacity: 0; } }
+.astuce-doigt { animation: astuce-glisse 2.2s ease-in-out infinite; transform-box: fill-box; }
+@media (prefers-reduced-motion: reduce) { .astuce-doigt { animation: none; } }

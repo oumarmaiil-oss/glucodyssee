@@ -4,25 +4,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Glucodyssée — le voyage du sucre : glycémie et diabète</title>
+    <title>Glucodyssée — le voyage du sucre, du repas aux organes</title>
     <meta name="author" content="Dr O. Sow" />
-    <meta name="description" content="Glucodyssée : comprendre la glycémie, le diabète de type 1 et de type 2, l’hypoglycémie et l’effet de chaque traitement, en images et en simulation. Gratuit, sur téléphone, hors connexion." />
+    <meta name="description" content="Glucodyssée : comprendre la glycémie et le diabète en 2D et en 3D — le voyage du sucre, le type 1, le type 2, l’hypoglycémie, les complications et l’effet de chaque classe de traitement, avec, sans et à l’arrêt du traitement." />
     <meta property="og:title" content="Glucodyssée — le voyage du sucre" />
-    <meta property="og:description" content="Glycémie sur 24 heures, diabète de type 1 et 2, hypoglycémie, Ramadan et traitements : un simulateur pédagogique gratuit, conçu à Dakar." />
+    <meta property="og:description" content="Corps, îlot de Langerhans en 3D, cellule, rein et courbe de 24 h : un outil visuel pour comprendre et faire comprendre le diabète et ses traitements." />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="fr_FR" />
     <meta property="og:url" content="https://oumarmaiil-oss.github.io/glucodyssee/" />
-    <meta property="og:image" content="https://oumarmaiil-oss.github.io/glucodyssee/og-image.png" />
+    <meta property="og:image" content="https://oumarmaiil-oss.github.io/glucodyssee/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://oumarmaiil-oss.github.io/glucodyssee/og-image.png" />
+    <meta name="twitter:image" content="https://oumarmaiil-oss.github.io/glucodyssee/og-image.jpg" />
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Glucodyssée" />
-    <meta name="theme-color" content="#0e0c0a" />
+    <meta name="theme-color" content="#070a12" />
     <link rel="icon" href="icon-192.png" />
     <link rel="canonical" href="https://oumarmaiil-oss.github.io/glucodyssee/" />
     <meta name="robots" content="index, follow" />
@@ -32,7 +32,7 @@
         "@type": "WebApplication",
         "name": "Glucodyssée",
         "url": "https://oumarmaiil-oss.github.io/glucodyssee/",
-        "description": "Simulateur pédagogique gratuit pour comprendre la glycémie, le diabète de type 1 et de type 2, l'hypoglycémie et l'effet des traitements.",
+        "description": "Outil pédagogique gratuit pour comprendre la glycémie, le diabète de type 1 et de type 2, l'hypoglycémie, les complications et l'effet des traitements, en 2D et en 3D.",
         "applicationCategory": "EducationalApplication",
         "operatingSystem": "Tous (navigateur web, Android, iPhone, ordinateur)",
         "inLanguage": "fr",
@@ -45,12 +45,14 @@
   </head>
   <body>
     <div id="root">
-      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0e0c0a;color:#e9eef8;font-family:system-ui,sans-serif">
-        <div style="width:46px;height:46px;border-radius:50%;background:#f0a832;animation:hb 1s infinite"></div>
+      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#070a12;color:#e9eef8;font-family:system-ui,sans-serif">
+        <div style="width:46px;height:46px;border-radius:50%;background:#f5a524;animation:hb 1.4s infinite"></div>
         <div style="font-size:15px;opacity:.8">Glucodyssée se prépare…</div>
-        <style>@keyframes hb{0%,100%{transform:scale(.85)}15%{transform:scale(1.05)}30%{transform:scale(.9)}45%{transform:scale(1)}}</style>
+        <style>@keyframes hb{0%,100%{transform:scale(.85)}50%{transform:scale(1.05)}}</style>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Statistiques de visites : GoatCounter (sans cookies, sans données personnelles). -->
+    <script data-goatcounter="https://marsow.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
   </body>
 </html>

@@ -5,7 +5,7 @@ import { defineConfig, type Plugin } from 'vite';
 
 /**
  * Génère sw.js à la compilation avec la liste exacte des fichiers produits :
- * toute l'application est mis en cache dès la première visite et
+ * toute l'application (3D comprise) est mis en cache dès la première visite et
  * fonctionne ensuite hors connexion. La version change à chaque compilation,
  * ce qui remplace proprement l'ancien cache.
  * Économie de données : lors d'une mise à jour, les fichiers versionnés (assets/…, nom
@@ -86,7 +86,7 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss(), serviceWorker()],
     define: { __VERSION__: JSON.stringify(new Date().toISOString().slice(0, 10)) },
     build: {
-      // three.js est isolé dans un fichier chargé à la demande (vues 3D).
+      // three.js est isolé dans un fichier chargé à la demande (îlot 3D).
       chunkSizeWarningLimit: 700,
     },
     resolve: {

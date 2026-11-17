@@ -1,6 +1,6 @@
 # Code de conduite
 
-Glucodyssée réunit des étudiants, des soignants, des enseignants, des développeurs et des patients.
+Hémodyssée réunit des étudiants, des soignants, des enseignants, des développeurs et des patients.
 Pour que chacun puisse contribuer sereinement :
 
 ## Ce que nous attendons
