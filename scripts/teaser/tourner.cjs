@@ -116,11 +116,10 @@ const OVERLAY = () => {
     duree = 4;
     await cliquer('button', 'Îlot'); await avancer(400); await p.waitForTimeout(300);
     await cliquer('button', '3D'); await p.waitForTimeout(2500); await avancer(600); await p.waitForTimeout(500);
-    const scene = await centre('[data-testid=scene]');
-    await p.mouse.move(scene.x - 120, scene.y); await p.mouse.down();
+    // L'îlot tourne seul (rotation automatique) ; on masque l'astuce « glissez pour tourner ».
+    await p.addStyleTag({ content: '[data-testid=scene] [role=note]{display:none!important}' });
     plan = [];
     etat = (t) => ({ capO: fade(t, 0.15, 4.4), titre: 'L\'îlot de Langerhans en 3D', sous: 'Cellules bêta, alpha et delta : l\'insuline et le glucagon en direct' });
-    var glisser = async (t) => { await p.mouse.move(scene.x - 120 + t * 60, scene.y + Math.sin(t * 1.3) * 10); };
   } else if (SEQ === 'ramadan') {
     duree = 13;
     await p.evaluate(() => { const e = [...document.querySelectorAll('button')].find((x) => x.textContent.includes('Jeûner en sécurité')); e && e.click(); });
