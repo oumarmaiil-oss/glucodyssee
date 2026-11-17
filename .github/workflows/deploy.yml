@@ -61,5 +61,5 @@ jobs:
         run: |
           curl -sS -m 30 -X POST "https://api.indexnow.org/indexnow" \
             -H "Content-Type: application/json; charset=utf-8" \
-            -d '{"host":"oumarmaiil-oss.github.io","key":"423e6d059f93c2239a49b4943af5ffa6","keyLocation":"https://oumarmaiil-oss.github.io/glucodyssee/423e6d059f93c2239a49b4943af5ffa6.txt","urlList":["https://oumarmaiil-oss.github.io/glucodyssee/"]}' \
+            -d '{"host":"oumarmaiil-oss.github.io","key":"aa6378b5dbaea0adb5b95ce2df3f73b5","keyLocation":"https://oumarmaiil-oss.github.io/glucodyssee/aa6378b5dbaea0adb5b95ce2df3f73b5.txt","urlList":["https://oumarmaiil-oss.github.io/glucodyssee/"]}' \
             -w "\nIndexNow : HTTP %{http_code}\n" || echo "IndexNow indisponible, sans conséquence pour le site."

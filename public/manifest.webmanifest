@@ -3,8 +3,8 @@
   "short_name": "Glucodyssée",
   "description": "La glycémie et le diabète en 2D et 3D : le voyage du sucre, le type 1, le type 2, l'hypoglycémie, les complications et l'effet des traitements.",
   "lang": "fr",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/glucodyssee/",
+  "scope": "/glucodyssee/",
   "display": "standalone",
   "background_color": "#070a12",
   "theme_color": "#070a12",
@@ -28,7 +28,7 @@
       "purpose": "maskable"
     }
   ],
-  "id": "./",
+  "id": "/glucodyssee/",
   "orientation": "any",
   "categories": [
     "education",

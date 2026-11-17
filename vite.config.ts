@@ -19,7 +19,7 @@ function serviceWorker(): Plugin {
     apply: 'build',
     generateBundle(_opts, bundle) {
       const files = Object.keys(bundle).filter((f) => !f.endsWith('.map') && f !== 'sw.js' && !f.endsWith('.woff'));
-      const statics = ['manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+      const statics = ['manifest.webmanifest', 'favicon-32.png', 'favicon.ico', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
       const version = Date.now().toString(36);
       const source = `/* Généré à la compilation — ne pas modifier. */
 const CACHE = 'glucodyssee-${version}';
