@@ -17,6 +17,8 @@ export interface Rendu {
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean): void;
   setDefinition(pr: number | null): void;
+  /** Pause et ralenti de l'interface appliqués aux mouvements propres de la scène (rotation 3D, grains). */
+  setMouvement?(pause: boolean, vitesse: number): void;
   zoomer(f: number): void;
   setMarges(m: Marges): void;
   dispose(): void;

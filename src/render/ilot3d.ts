@@ -98,6 +98,7 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
   const cIns = new THREE.Color(0x7dd3fc), cGlu = new THREE.Color(0xd8b4fe);
 
   let etat: Etat | null = null, accI = 0, accG = 0, temps = 0;
+  let facteur = 1; // 0 en pause, 0,35 au ralenti : la rotation et les grains suivent les boutons de l'interface
   const redim = () => {
     const w = conteneur.clientWidth, h = conteneur.clientHeight;
     if (defImposee) renderer.setPixelRatio(defImposee);
@@ -122,7 +123,8 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
   const vTmp = new THREE.Vector3();
 
   return {
-    frame(i: Instant, dt: number) {
+    frame(i: Instant, dtReel: number) {
+      const dt = dtReel * facteur;
       temps += dt;
       const beta = etat?.terrain.beta ?? 1, t1 = etat?.terrain.type === 't1';
       cels.forEach((c, k) => {
@@ -172,6 +174,7 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
       renderer.render(scene, camera);
     },
     maj(e) { etat = e; },
+    setMouvement(pause, vitesse) { facteur = pause ? 0 : vitesse; },
     focus(z: ZoneId | null) { if (!z) { camera.position.set(0, 1.2, 9); controls.target.set(0, 0, 0); } },
     selection() { /* une seule structure */ },
     setEtiquettes() { /* légende affichée par l'interface */ },

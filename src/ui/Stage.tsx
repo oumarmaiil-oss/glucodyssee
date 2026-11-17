@@ -138,6 +138,8 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
   etatRef.current = etat;
   useEffect(() => { rendu.current?.maj(etat, etatSans); }, [etat, etatSans]);
   useEffect(() => { horloge.current.vitesse = ralenti ? 0.35 : 1; }, [ralenti]);
+  // La pause et le ralenti s'appliquent aussi aux mouvements de la scène (rotation automatique de l'îlot 3D, grains).
+  useEffect(() => { rendu.current?.setMouvement?.(pauseJour, ralenti ? 0.35 : 1); }, [pauseJour, ralenti, pret, vue]);
   const [menuVoyages, setMenuVoyages] = useState(false);
   const [menuAgir, setMenuAgir] = useState(false);
   // Suivre une molécule (vue Corps) : la caméra la suit, le journal raconte chaque étape et sa raison.
@@ -428,8 +430,8 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
       {/* Son, ralenti, pause de la journée, zoom : colonne de gauche */}
       <div className="absolute z-20 left-2 top-12 lg:top-24 flex flex-col gap-1.5">
         <button onClick={onSon} className={`btn-icone !w-8 !h-8 ${sonOn ? 'actif' : ''}`} title={sonOn ? 'Couper les alarmes du capteur' : 'Activer les alarmes du capteur'} aria-label={sonOn ? 'Couper les alarmes du capteur' : 'Activer les alarmes du capteur'} aria-pressed={sonOn}>{sonOn ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
-        <button onClick={onRalenti} className={`btn-icone !w-8 !h-8 ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti" aria-pressed={ralenti}><Snail size={15} /></button>
-        <button onClick={() => setPauseJour((v) => !v)} className={`btn-icone !w-8 !h-8 ${pauseJour ? 'actif' : ''}`} title={pauseJour ? 'Reprendre la journée' : 'Arrêter l\'horloge'} aria-label={pauseJour ? 'Reprendre la journée' : 'Arrêter l\'horloge'} aria-pressed={pauseJour}>{pauseJour ? <Play size={14} /> : <Pause size={14} />}</button>
+        <button onClick={onRalenti} className={`btn-icone !w-8 !h-8 ${ralenti ? 'actif' : ''}`} title={vue === 'ilot3d' ? 'Ralenti : la journée et la rotation ralentissent' : 'Ralenti'} aria-label="Ralenti" aria-pressed={ralenti}><Snail size={15} /></button>
+        <button onClick={() => setPauseJour((v) => !v)} className={`btn-icone !w-8 !h-8 ${pauseJour ? 'actif' : ''}`} title={pauseJour ? 'Reprendre' : vue === 'ilot3d' ? 'Pause : l\'horloge et la rotation s\'arrêtent' : 'Arrêter l\'horloge'} aria-label={pauseJour ? 'Reprendre' : 'Mettre en pause'} aria-pressed={pauseJour}>{pauseJour ? <Play size={14} /> : <Pause size={14} />}</button>
         {pret && (
           <div className="mt-1.5 flex flex-col rounded-[10px] border border-line bg-ink/80 overflow-hidden">
             <button onClick={() => rendu.current?.zoomer(1.35)} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Zoomer" aria-label="Zoomer"><ZoomIn size={15} /></button>

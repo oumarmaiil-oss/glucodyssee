@@ -1,10 +1,12 @@
 """Musique originale du teaser (30 s), synthétisée : aucune boucle ni échantillon extérieur.
 Structure calée sur le montage : 0-9 s montée douce, 9-17 s pulsation, 16 s montée + impact à 17 s (atelier Ramadan),
 17-27 s thème complet, 27 s accord final et extinction."""
-import numpy as np, wave, sys
+import numpy as np, wave, sys, os
 
 SR = 44100
-DUREE = 30.0
+DUREE = float(os.environ.get('DUREE', 30))
+# Repères du montage (s) : début de la pulsation, de l'arpège, impact (fonction phare), accord final.
+T_PULSE, T_ARP, T_IMP, T_FIN = (float(os.environ.get(k, d)) for k, d in (('T_PULSE', 9), ('T_ARP', 4.3), ('T_IMP', 17), ('T_FIN', 27)))
 BPM = 112
 BEAT = 60 / BPM
 N = int(SR * DUREE)
@@ -79,36 +81,36 @@ ARP = [0, 1, 2, 1, 2, 0, 2, 1]
 pos, k = 0.0, 0
 while pos < DUREE - 0.5:
     acc = ACC[k % 4]
-    for f in acc: ajoute(note(f, MESURE * 2 + 0.6, 'pad'), pos, 1.0 if pos < 27 else 0.0, pan=(f % 3 - 1) * 0.3)
-    if 9 <= pos < 27:
+    for f in acc: ajoute(note(f, MESURE * 2 + 0.6, 'pad'), pos, 1.0 if pos < T_FIN else 0.0, pan=(f % 3 - 1) * 0.3)
+    if T_PULSE <= pos < T_FIN:
         for b in range(8): ajoute(note(BASSE[k % 4], BEAT * 0.9, 'basse'), pos + b * BEAT)
-    if 4.3 <= pos < 27:
+    if T_ARP <= pos < T_FIN:
         for s in range(16):
-            f = acc[ARP[s % 8]] * (2 if pos >= 17 else 1)
-            ajoute(note(f, BEAT / 2 * 0.95, 'pluck'), pos + s * BEAT / 2, 0.8 if pos >= 17 else 0.55, pan=0.35 if s % 2 else -0.35)
+            f = acc[ARP[s % 8]] * (2 if pos >= T_IMP else 1)
+            ajoute(note(f, BEAT / 2 * 0.95, 'pluck'), pos + s * BEAT / 2, 0.8 if pos >= T_IMP else 0.55, pan=0.35 if s % 2 else -0.35)
     pos += MESURE * 2; k += 1
 
 # Percussions.
 b = 0.0
-while b < 27:
-    if b >= 9: ajoute(kick(0.8 if b < 17 else 1.0), b)
-    if b >= 17 and int(round(b / BEAT)) % 2 == 1: ajoute(clap(), b, pan=0.1)
-    if b >= 9: ajoute(hat(0.7), b + BEAT / 2, pan=0.4)
-    if b >= 17: ajoute(hat(0.5), b + BEAT / 4, pan=-0.4); ajoute(hat(0.5), b + 3 * BEAT / 4, pan=-0.4)
+while b < T_FIN:
+    if b >= T_PULSE: ajoute(kick(0.8 if b < T_IMP else 1.0), b)
+    if b >= T_IMP and int(round(b / BEAT)) % 2 == 1: ajoute(clap(), b, pan=0.1)
+    if b >= T_PULSE: ajoute(hat(0.7), b + BEAT / 2, pan=0.4)
+    if b >= T_IMP: ajoute(hat(0.5), b + BEAT / 4, pan=-0.4); ajoute(hat(0.5), b + 3 * BEAT / 4, pan=-0.4)
     b += BEAT
 
 # Montée et impact (arrivée de l'atelier Ramadan à 17 s), cloches aux temps forts du montage.
-ajoute(riser(2.2), 17.0 - 2.2, 0.9)
-ajoute(impact(), 17.0, 1.0)
-for tt0, f in [(0.2, 880.0), (2.9, 659.25), (9.0, 783.99), (13.0, 659.25), (19.4, 523.25), (23.8, 880.0)]:
+ajoute(riser(min(2.2, T_IMP - 0.2)), T_IMP - min(2.2, T_IMP - 0.2), 0.9)
+ajoute(impact(), T_IMP, 1.0)
+for tt0, f in [(x, f) for x, f in [(0.2, 880.0), (T_PULSE, 783.99), (T_IMP + 2.4, 523.25), (T_IMP + 6.8, 880.0)] if x < T_FIN]:
     ajoute(note(f, 2.5, 'cloche'), tt0, 0.9, pan=0.2)
 # Accord final (27 s) : la mineur ouvert, long.
-for f in (110.0, 220.0, 329.63, 440.0, 523.25): ajoute(note(f, 3.0, 'pad') * 1.6, 27.0)
-ajoute(impact() * 0.7, 27.0)
-ajoute(note(880.0, 3.0, 'cloche'), 27.0, 1.0)
+for f in (110.0, 220.0, 329.63, 440.0, 523.25): ajoute(note(f, 3.0, 'pad') * 1.6, T_FIN)
+ajoute(impact() * 0.7, T_FIN)
+ajoute(note(880.0, 3.0, 'cloche'), T_FIN, 1.0)
 
 # Arc dynamique : douce au début, plus présente à 9 s, pleine à partir de l'impact (17 s).
-arc = np.interp(t, [0, 8.8, 9.2, 16.8, 17.0, 30], [0.42, 0.5, 0.68, 0.78, 1.0, 1.0])
+arc = np.interp(t, [0, T_PULSE - 0.2, T_PULSE + 0.2, T_IMP - 0.2, T_IMP, DUREE], [0.42, 0.5, 0.68, 0.78, 1.0, 1.0])
 L *= arc; R *= arc
 # Réverbération légère (convolution avec un bruit décroissant), compression douce, fondus.
 ir_n = int(1.6 * SR); ir = np.random.randn(ir_n) * np.exp(-np.arange(ir_n) / SR * 3.2) * 0.012; ir[0] = 1.0

@@ -355,7 +355,7 @@ export default function App() {
 
       <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
-          <div className={`${ramadanAt ? 'h-[60dvh]' : tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
+          <div className={`${ramadanAt ? 'h-[70dvh]' : tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
             <Stage key={cleScene} vue={vue} etat={etatScene} etatSans={etatSansScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={vueManuelle}
               onVoyage={lancerVoyage} siteMicroPatho={pathoVue === 'retino' ? 'retine' : pathoVue === 'nephro' ? 'glomerule' : pathoVue === 'neuro' || pathoVue === 'pied' ? 'nerf' : null} onLectureLocale={setLectLoc} demandeSuivi={demandeSuivi} demandeAtelier={demandeAtelier} onAgir={agir} nbAjouts={collations.length + effortsPerso.length + injPerso.length} figer={minuteVoyage} bandeau={bandeauPatho}
               tourActif={tour !== null} site={site} onSite={setSite} allerA={allerA}

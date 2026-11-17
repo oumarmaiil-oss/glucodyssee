@@ -11,3 +11,17 @@ Fabriqué à partir de la vraie application : rien n'est truqué, les courbes et
 
 Plan : 0-9 s vue Corps (un repas entre et devient glucose) · 9-13 s suivre une molécule · 13-17 s îlot en 3D ·
 17-27 s **fonction phare : l'atelier « Jeûner en sécurité » (Ramadan)** · 27-30 s carte de fin.
+
+## Version verticale de 15 secondes (TikTok, Reels, Shorts, statut WhatsApp)
+
+Fabriquée en moins d'une minute : enregistrement en temps réel (le déroulé est joué dans la page), 1080×1920.
+
+1. Application servie sur http://localhost:4180/glucodyssee/ (comme ci-dessus).
+2. `node tiktok.cjs` → `tiktok-video.mp4` (sans son).
+3. Musique de 15 s calée sur le montage :
+   `DUREE=15 T_PULSE=1.2 T_ARP=0.6 T_IMP=2.6 T_FIN=12.2 python3 musique.py musique15.wav`
+4. Assemblage :
+   `ffmpeg -i tiktok-video.mp4 -i musique15.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart glucodyssee-ramadan-15s-vertical.mp4`
+
+Résultat publié : `docs/videos/glucodyssee-ramadan-15s-vertical.mp4`. La carte de fin rappelle qu'il s'agit d'une
+simulation pédagogique et qu'on ne change jamais son traitement sans son médecin.
