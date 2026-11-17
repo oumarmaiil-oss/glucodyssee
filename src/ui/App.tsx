@@ -5,7 +5,7 @@ import { apresDelaiEtVoix } from '../core/voix.ts';
 import { AidesDefilement } from './Defilement.tsx';
 import { BandeauInstaller, FenetreInstaller } from './Installer.tsx';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
-import { PastilleOrangeMoney, PastilleWave, Soutien } from './Soutien.tsx';
+import { Soutien } from './Soutien.tsx';
 import { calculer, evoluer, indexAn, REPAS_JOUR, TERRAIN_SAIN } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
 import type { ClasseId, Effort, Niveau, Repas, Traitement } from '../core/types.ts';
@@ -306,7 +306,7 @@ export default function App() {
           · v{__VERSION__}
           · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
           · <button onClick={() => setAideInstall(true)} className="underline decoration-dotted hover:text-txt">Installer</button>
-          · <button onClick={() => setSoutien(true)} className="inline-flex items-center gap-1 hover:text-txt" title="Don · Soutien (Wave, Orange Money)"><span className="underline decoration-dotted">Don · Soutien</span> <PastilleWave taille={14} /><PastilleOrangeMoney taille={14} /></button>
+          · <button onClick={() => setSoutien(true)} className="inline-flex items-center gap-1 hover:text-txt" title="Don · Soutien (Wave, Orange Money)"><span className="underline decoration-dotted">Don · Soutien (Wave, Orange Money)</span></button>
           · <a href="https://oumarmaiil-oss.github.io/hemodyssee/" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">Hémodyssée</a>
         </p>
         <p>
