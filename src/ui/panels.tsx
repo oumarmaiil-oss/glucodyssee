@@ -15,7 +15,7 @@ import { GraphiqueEvolution, LEGENDE_SCENARIOS, Moniteur, Risques } from './widg
 import { NOMS_VUES, vuePour, zoneDansVue, type Vue } from './Stage.tsx';
 import { VOYAGES, type Voyage, type VueVoyage } from '../content/voyages.ts';
 import { VUES_PATHO } from '../content/vuesPatho.ts';
-import { KeyRound, Route } from 'lucide-react';
+import { KeyRound, Moon, Route } from 'lucide-react';
 import { PucesSources } from './Sources.tsx';
 import { SOURCES_FICHE } from '../content/sources.ts';
 
@@ -45,8 +45,8 @@ function Texte3({ textes, niveau }: { textes: Record<Niveau, string>; niveau: Ni
 
 // ─────────────────────────── Explorer ───────────────────────────
 
-function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre, onAtelier }: {
-  onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void;
+function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre, onAtelier, onRamadan }: {
+  onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void; onRamadan: () => void;
   onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; repas: Repas[]; onRepas: (r: Repas[]) => void; onZone: (z: ZoneId | null) => void;
 }) {
   const [choix, setChoix] = useState<Voyage['id']>('glucose');
@@ -56,12 +56,16 @@ function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre
     <div className="space-y-3 fade-in">
       <div>
         <h2 className="font-display text-xl">Apprendre en manipulant</h2>
-        <p className="text-[13px] text-muted mt-1">Trois façons de comprendre. Touchez aussi un organe dans la scène pour voir ses maladies.</p>
+        <p className="text-[13px] text-muted mt-1">Quatre façons de comprendre. Touchez aussi un organe dans la scène pour voir ses maladies.</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5">
         <button onClick={onAtelier} className="carte p-2.5 flex items-center gap-2.5 text-left hover:border-[#38bdf8]/60">
           <span className="w-8 h-8 rounded-lg bg-[#38bdf8]/15 text-[#38bdf8] grid place-items-center shrink-0"><KeyRound size={16} /></span>
           <span className="flex-1 min-w-0"><span className="block text-[13.5px] font-bold">La clé et la porte</span><span className="block text-[11.5px] text-muted leading-snug">Réglez l'insuline : le glucose entre-t-il dans le muscle ?</span></span>
+        </button>
+        <button onClick={onRamadan} className="carte p-2.5 flex items-center gap-2.5 text-left hover:border-[#a78bfa]/60">
+          <span className="w-8 h-8 rounded-lg bg-[#a78bfa]/15 text-[#a78bfa] grid place-items-center shrink-0"><Moon size={16} /></span>
+          <span className="flex-1 min-w-0"><span className="block text-[13.5px] font-bold">Jeûner en sécurité</span><span className="block text-[11.5px] text-muted leading-snug">Ramadan : quel traitement, quels horaires, quand rompre le jeûne ?</span></span>
         </button>
         <div className="carte p-2.5 space-y-1.5">
           <div className="flex items-center gap-2.5"><span className="w-8 h-8 rounded-lg bg-miel/15 text-miel grid place-items-center shrink-0"><Route size={16} /></span><span className="min-w-0"><span className="block text-[13.5px] font-bold">Suivre une molécule</span><span className="block text-[11.5px] text-muted leading-snug">Son trajet dépend de l'heure et du patient</span></span></div>
@@ -121,13 +125,13 @@ const ETAPE_COURTE: Record<Voyage['id'], string[]> = {
   defense: ['Le sucre descend sous 0,70 g/L', 'Les cellules bêta s\'arrêtent (sauf sous sulfamide)', 'Les cellules alpha libèrent le glucagon', 'Le foie vide ses réserves', 'Le cerveau souffre en premier', 'Règle des 15 : 15 g de sucre'],
 };
 
-export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue, onSuivre, onAtelier, onSource }: {
+export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue, onSuivre, onAtelier, onRamadan, onSource }: {
   zone: ZoneId | null; niveau: Niveau; vue: Vue; actives: PathoActive[]; repas: Repas[]; onRepas: (r: Repas[]) => void;
-  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void; onSource?: (id: string) => void;
+  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void; onRamadan: () => void; onSource?: (id: string) => void;
   onZone: (z: ZoneId | null) => void; onTogglePatho: (id: string) => void; onVue: (v: Vue) => void; onVoirPatho: (id: string) => void;
 }) {
   if (!zone) {
-    return <AccueilExplorer onAtelier={onAtelier} onSuivre={onSuivre} onVoyage={onVoyage} onVoirVue={onVoirVue} repas={repas} onRepas={onRepas} onZone={onZone} />;
+    return <AccueilExplorer onAtelier={onAtelier} onRamadan={onRamadan} onSuivre={onSuivre} onVoyage={onVoyage} onVoirVue={onVoirVue} repas={repas} onRepas={onRepas} onZone={onZone} />;
   }
   const z = ZONES[zone];
   const idx = VOYAGE_Z.indexOf(zone);
@@ -219,7 +223,7 @@ export function PanneauMaladies(props: {
   onFocus: (id: string | null) => void; onToggle: (id: string) => void; onSeverite: (id: string, s: number) => void;
   onScenario: (a: PathoActive[]) => void; onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void;
   onSequence: () => void; onComparer: () => void; onResucrage: () => void;
-  onVoir: (v: Vue) => void; onPresentation: (id: string) => void;
+  onVoir: (v: Vue) => void; onPresentation: (id: string) => void; onRamadan: () => void;
   onCas: (actives: PathoActive[], traitement: Traitement, zone: ZoneId | null) => void;
   onSource: (id: string) => void;
 }) {
@@ -262,6 +266,13 @@ export function PanneauMaladies(props: {
             </div>
             <div className="titre-section mt-3 mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul>
             <div className="mt-3"><PucesSources ids={SOURCES_FICHE[f.id]} onSource={props.onSource} /></div></section>
+          {f.id === 'ramadan' && (
+            <button onClick={props.onRamadan} className="w-full carte p-2.5 flex items-center gap-2.5 text-left border-[#a78bfa]/50 hover:border-[#a78bfa]">
+              <span className="w-8 h-8 rounded-lg bg-[#a78bfa]/15 text-[#a78bfa] grid place-items-center shrink-0"><Moon size={16} /></span>
+              <span className="flex-1 min-w-0"><span className="block text-[13.5px] font-bold">Atelier : jeûner en sécurité</span><span className="block text-[11.5px] text-muted leading-snug">6 étapes sur la courbe de la journée : glibenclamide, gliclazide, iDPP-4, insuline aux bons horaires</span></span>
+              <ArrowRight size={15} className="text-dim" />
+            </button>
+          )}
           {f.id === 'hypo' && actives.some((a) => a.id === 'hypo') && (
             <button onClick={props.onResucrage} className="w-full rounded-xl bg-miel text-ink font-bold text-[13.5px] py-2.5 inline-flex items-center justify-center gap-2"><Candy size={16} /> Resucrer : 15 g de sucre au moment du malaise</button>
           )}

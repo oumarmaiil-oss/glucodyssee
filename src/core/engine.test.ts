@@ -8,6 +8,7 @@ import { CLASSES, CLASSE_PAR_ID } from '../content/classes.ts';
 import { ZONES } from '../content/zones.ts';
 import { CAS } from '../content/cas.ts';
 import { PRESENTATIONS } from '../content/presentations.ts';
+import { bilanJeune, CHOIX_RAMADAN, ETAPES_RAMADAN } from '../content/atelierRamadan.ts';
 import type { ClasseId, Traitement } from './types.ts';
 
 const terrain = (a: PathoActive[]) => construireTerrain(TERRAIN_SAIN, a);
@@ -166,4 +167,23 @@ test('HGPO : lecture selon les normes (sain normal, type 2 installé diabète, g
   const pre = lire([{ id: 't2', s: 0.4 }]);
   assert.equal(pre.niveau, 'warn'); assert.ok(pre.t120 >= 140 && pre.t120 < 200, `${pre.t120}`);
   assert.match(lire([{ id: 'gestationnel', s: 0.7 }]).criteres, /0,92/);
+});
+
+test('atelier Ramadan : chaque étape peut être réussie avec le moteur calibré', () => {
+  for (const habituels of [true, false]) {
+    const t = terrain([{ id: 't2', s: 0.4 }, { id: 'ramadan', s: 0.7 }]);
+    t.ramadanHorairesHabituels = habituels;
+    for (const c of CHOIX_RAMADAN) {
+      const b = bilanJeune(calculer(t, c.tr));
+      if (c.id === 'metf' || c.id === 'idpp4' || c.id === 'glicDemi') assert.ok(!b.hypo, `${c.id} : pas d'hypoglycémie (min ${b.min.toFixed(0)})`);
+      if (c.id === 'glib') assert.ok(b.hypo && b.rompre, 'glibenclamide : il faut rompre le jeûne');
+      if (c.id === 'melange') assert.equal(b.hypo, habituels, `insuline mélange, horaires ${habituels ? 'habituels' : 'adaptés'}`);
+    }
+  }
+  // Toutes les étapes ont au moins un réglage qui les valide.
+  const t = (h: boolean) => { const x = terrain([{ id: 't2', s: 0.4 }, { id: 'ramadan', s: 0.7 }]); x.ramadanHorairesHabituels = h; return x; };
+  ETAPES_RAMADAN.forEach((e, i) => {
+    const ok = CHOIX_RAMADAN.some((c) => [true, false].some((h) => e.reussi({ choix: c.id, habituels: h }, bilanJeune(calculer(t(h), c.tr)))));
+    assert.ok(ok, `étape ${i + 1} (${e.titre}) impossible à réussir`);
+  });
 });

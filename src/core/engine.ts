@@ -84,9 +84,11 @@ export function injectionsPour(t: Terrain, tr: Traitement, fraction = 1): Inject
   for (const x of t.injectionsPlus ?? []) inj.push({ h: x.h, type: 'rapideAnalogue', u: x.u });
   if (d('melange') > 0) {
     const m = MELANGE(t);
-    // Ramadan : la dose du matin passe au ndogu, celle du soir au sahur (guide IDF-DAR).
-    inj.push({ h: t.ramadan ? 19.4 : 7.4, type: 'premix30', u: Math.round(m.matin * d('melange')) });
-    inj.push({ h: t.ramadan ? 4.9 : 20.4, type: 'premix30', u: Math.round(m.soir * d('melange')) });
+    // Ramadan (guide IDF-DAR) : la dose du matin passe au ndogu ; celle du soir, réduite (ici de 30 %, dans la fourchette 25-50 %), au sahur.
+    // Option pédagogique : horaires et doses habituels malgré le jeûne (l'erreur à éviter).
+    const adapte = t.ramadan && !t.ramadanHorairesHabituels;
+    inj.push({ h: adapte ? 19.4 : 7.4, type: 'premix30', u: Math.round(m.matin * d('melange')) });
+    inj.push({ h: adapte ? 4.9 : 20.4, type: 'premix30', u: Math.round(m.soir * d('melange') * (adapte ? 0.7 : 1)) });
   }
   return inj;
 }

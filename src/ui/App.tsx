@@ -9,6 +9,8 @@ import { calculer, evoluer, indexAn, REPAS_JOUR, TERRAIN_SAIN } from '../core/en
 import { Son } from '../core/audio.ts';
 import type { ClasseId, Effort, Niveau, Repas, Traitement } from '../core/types.ts';
 import type { ZoneId } from '../content/zones.ts';
+import { bilanJeune, CHOIX_RAMADAN, type ReglageRamadan } from '../content/atelierRamadan.ts';
+import { PanneauRamadan, type EtatAtelierRamadan } from './AtelierRamadan.tsx';
 import { construireTerrain, PATHO_PAR_ID, TYPES_DIABETE, type PathoActive } from '../content/pathologies.ts';
 import { CLASSE_PAR_ID } from '../content/classes.ts';
 import { Stage, zoneDansVue, type SiteCellule, type Vue } from './Stage.tsx';
@@ -57,6 +59,7 @@ export default function App() {
   const [lectLoc, setLectLoc] = useState(false);
   const [source, setSource] = useState<string | null>(null);
   const [demandeAtelier, setDemandeAtelier] = useState(0);
+  const [ramadanAt, setRamadanAt] = useState<EtatAtelierRamadan | null>(null);
   const [demandeSuivi, setDemandeSuivi] = useState<{ type: 'glucose' | 'insuline'; n: number } | null>(null);
   const [traitement, setTraitement] = useState<Traitement>({});
   const [repas, setRepas] = useState<Repas[]>(REPAS_JOUR);
@@ -82,7 +85,7 @@ export default function App() {
     return () => { window.removeEventListener('gluco-maj', surMaj); window.removeEventListener('beforeinstallprompt', surInstall); };
   }, []);
 
-  const terrain = useMemo(() => construireTerrain({ ...TERRAIN_SAIN, repas, collations, efforts: effortsPerso, injectionsPlus: injPerso }, actives), [actives, repas, collations, effortsPerso, injPerso]);
+  const terrain = useMemo(() => construireTerrain({ ...TERRAIN_SAIN, repas, collations, efforts: effortsPerso, injectionsPlus: injPerso, ramadanHorairesHabituels: ramadanAt?.r.habituels }, actives), [actives, repas, collations, effortsPerso, injPerso, ramadanAt?.r.habituels]);
   const etatSans = useMemo(() => calculer(terrain, {}), [terrain]);
   const etatAuj = useMemo(() => calculer(terrain, traitement), [terrain, traitement]);
   const evoScene = useMemo(() => {
@@ -137,7 +140,7 @@ export default function App() {
   const avantPres = useRef<{ actives: PathoActive[]; traitement: Traitement; vue: Vue; zone: ZoneId | null; vueEvo: VueEvolution | null } | null>(null);
   const etapePres = pres ? PRESENTATION_PAR_ID[pres.id].etapes[pres.i] : null;
   const lancerPresentation = (id: string) => {
-    if (!pres) avantPres.current = { actives, traitement, vue, zone, vueEvo };
+    if (!pres) avantPres.current = avantRamadan.current ?? { actives, traitement, vue, zone, vueEvo };
     setTour(null); setSeq(null); setFocusPatho(null); setPres({ id, i: 0, pause: false });
   };
   const arreterPresentation = () => {
@@ -164,6 +167,31 @@ export default function App() {
     if (zone && !zoneDansVue(zone, v)) setZone(null);
     setVue(v);
   };
+
+  // Atelier « Jeûner en sécurité » : patient de type 2 qui jeûne ; à la fermeture, on retrouve l'état d'avant.
+  const avantRamadan = useRef<{ focusPatho: string | null; actives: PathoActive[]; traitement: Traitement; vue: Vue; zone: ZoneId | null; vueEvo: VueEvolution | null; collations: Repas[]; effortsPerso: Effort[]; injPerso: { h: number; u: number }[] } | null>(null);
+  const choixRamadan = ramadanAt ? CHOIX_RAMADAN.find((c) => c.id === ramadanAt.r.choix)! : null;
+  const ouvrirRamadan = () => {
+    if (!ramadanAt) avantRamadan.current = { focusPatho, actives, traitement, vue, zone, vueEvo, collations, effortsPerso, injPerso };
+    if (pres) { setPres(null); avantPres.current = null; }
+    setTour(null); setSeq(null); setFocusPatho('ramadan');
+    setActives([{ id: 't2', s: 0.4 }, { id: 'ramadan', s: 0.7 }]); setTraitement(CHOIX_RAMADAN[0].tr);
+    setVueEvo(null); setCollations([]); setEffortsPerso([]); setInjPerso([]); setZone(null); setVue('courbe');
+    setRamadanAt({ etape: 0, r: { choix: 'metf', habituels: true } });
+  };
+  const fermerRamadan = () => {
+    const a = avantRamadan.current; setRamadanAt(null); avantRamadan.current = null;
+    if (a) { setFocusPatho(a.focusPatho); setActives(a.actives); setTraitement(a.traitement); setVue(a.vue); setZone(a.zone); setVueEvo(a.vueEvo); setCollations(a.collations); setEffortsPerso(a.effortsPerso); setInjPerso(a.injPerso); }
+  };
+  const reglerRamadan = (x: Partial<ReglageRamadan>) => {
+    if (!ramadanAt) return;
+    const r = { ...ramadanAt.r, ...x };
+    setRamadanAt({ ...ramadanAt, r }); setTraitement(CHOIX_RAMADAN.find((c) => c.id === r.choix)!.tr);
+  };
+  // Si le jeûne disparaît (tout retirer, cas clinique, présentation…), l'atelier se ferme sans rien restaurer.
+  useEffect(() => { if (ramadanAt && !actives.some((a) => a.id === 'ramadan')) { setRamadanAt(null); avantRamadan.current = null; } }, [actives]);
+  const conformeRamadan = !!choixRamadan && JSON.stringify(traitement) === JSON.stringify(choixRamadan.tr);
+  const bilanRamadan = useMemo(() => (ramadanAt ? bilanJeune(etatAuj) : null), [!!ramadanAt, etatAuj]);
 
   const lancerSequence = () => { setTour(null); setPres(null); setSeq(0); };
   const comparer = () => { setSeq(null); setVueEvo(null); setVue('courbe'); };
@@ -327,7 +355,7 @@ export default function App() {
 
       <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
-          <div className={`${tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
+          <div className={`${ramadanAt ? 'h-[60dvh]' : tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
             <Stage key={cleScene} vue={vue} etat={etatScene} etatSans={etatSansScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={vueManuelle}
               onVoyage={lancerVoyage} siteMicroPatho={pathoVue === 'retino' ? 'retine' : pathoVue === 'nephro' ? 'glomerule' : pathoVue === 'neuro' || pathoVue === 'pied' ? 'nerf' : null} onLectureLocale={setLectLoc} demandeSuivi={demandeSuivi} demandeAtelier={demandeAtelier} onAgir={agir} nbAjouts={collations.length + effortsPerso.length + injPerso.length} figer={minuteVoyage} bandeau={bandeauPatho}
               tourActif={tour !== null} site={site} onSite={setSite} allerA={allerA}
@@ -356,7 +384,8 @@ export default function App() {
                   else { setSeq(null); setVueEvo(null); }
                 }
               }}
-              peutRetour={histo.length > 0} onRetour={retour} />
+              peutRetour={histo.length > 0} onRetour={retour}
+              panneauBas={ramadanAt && bilanRamadan ? <PanneauRamadan at={ramadanAt} bilan={bilanRamadan} conforme={conformeRamadan} onRegler={reglerRamadan} onEtape={(i) => setRamadanAt({ ...ramadanAt, etape: i })} onFermer={fermerRamadan} /> : null} />
           </div>
           {vueEvo && seq === null && (
             <div className="rounded-xl border border-warn/40 bg-warn/8 px-2.5 py-1.5 text-[12.5px] flex flex-wrap items-center gap-2">
@@ -398,11 +427,12 @@ export default function App() {
           )}
           <div className="relative flex-1 min-h-0 flex flex-col">
           <div ref={panneau} className="flex-1 overflow-y-auto scroll-thin p-3.5 pr-5 lg:pr-3.5" data-testid="panneau">
-            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} onVoyage={lancerVoyage} onSource={setSource} onAtelier={() => { setTour(null); setPres(null); setSeq(null); setSite('muscle'); vueManuelle('cellule'); setDemandeAtelier((n) => n + 1); }} onSuivre={(type) => { setTour(null); setPres(null); setSeq(null); setDemandeSuivi({ type, n: Date.now() }); }} onVoirVue={(z, v, st) => { onZone(z); if (st) setSite(st); vueManuelle(v === 'ilot' ? modeIlot : v); }} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
+            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} onVoyage={lancerVoyage} onSource={setSource} onAtelier={() => { if (ramadanAt) fermerRamadan(); setTour(null); setPres(null); setSeq(null); setSite('muscle'); vueManuelle('cellule'); setDemandeAtelier((n) => n + 1); }} onSuivre={(type) => { if (ramadanAt) fermerRamadan(); setTour(null); setPres(null); setSeq(null); setDemandeSuivi({ type, n: Date.now() }); }} onRamadan={ouvrirRamadan} onVoirVue={(z, v, st) => { onZone(z); if (st) setSite(st); vueManuelle(v === 'ilot' ? modeIlot : v); }} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
             {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} terrain={terrain} etat={etatAuj} etatSans={etatSans}
               onSource={setSource} onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer} onResucrage={resucrer}
               onVoir={(v) => { setTour(null); setSeq(null); const sp = focusPatho ? VUES_PATHO[focusPatho]?.site : undefined; if (v === 'cellule' && sp) setSite(sp); vueManuelle(v === 'ilot' ? modeIlot : v); }}
               onPresentation={lancerPresentation}
+              onRamadan={ouvrirRamadan}
               onCas={(a, t, z) => { setPres(null); setSeq(null); setTour(null); setActives(a); setTraitement(t); setVueEvo(null); setZone(z); setCollations([]); }}
               onSeverite={(id, s) => setActives((a) => a.map((x) => (x.id === id ? { ...x, s } : x)))}
               onScenario={(a) => { setActives(a); setTraitement({}); setVueEvo(null); setFocusPatho(null); setCollations([]); if (a[0] && ZONE_LESION[a[0].id]) setZone(ZONE_LESION[a[0].id]); }} />}

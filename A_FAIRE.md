@@ -29,6 +29,9 @@ Mis à jour le 17 novembre 2026.
   intolérance au glucose selon les normes ; le cas clinique « découverte au bilan » utilise désormais le type 2 installé.
 - HGPO : la boisson est absorbée comme un repas (même vidange gastrique) ; la montée réelle est un peu plus rapide.
 - Atelier « La clé et la porte » : modèle volontairement très simple (sang, muscle, foie), séparé du moteur calibré.
+- Atelier Ramadan : il utilise le moteur calibré ; la dose du soir de l'insuline mélange est réduite de 30 % au sahur
+  (les résumés du guide IDF-DAR donnent 25 à 50 %) ; sous glibenclamide, le modèle donne une hypoglycémie longue (min
+  0,50 g/L), plus marquée que chez beaucoup de patients réels : c'est le sens de variation qui compte.
 - Doses « standard » d'insuline choisies pour la pédagogie (adulte de 70 kg) : type 1 glargine 20 U + rapide 1 U pour
   12 g de glucides, mélange 30/70 12 U + 8 U ; type 2 glargine 14 U, mélange 16 U + 10 U. **À valider** par un
   diabétologue ; elles ne servent jamais à calculer une dose réelle.
@@ -43,7 +46,9 @@ Mis à jour le 17 novembre 2026.
 
 ## Prochains lots (cahier des charges, chapitre 10)
 - [ ] L'assiette sénégalaise (plats, portions, boissons sucrées) avec la table FAO/INFOODS.
-- [ ] Ramadan : calcul pédagogique du score de risque IDF-DAR (après vérification du PDF).
+- [ ] Ramadan : calcul pédagogique du score de risque IDF-DAR. **Non fait volontairement** : les poids des 14 critères
+  et les bornes n'ont pas pu être vérifiés sur le document original, et une mise à jour est parue en 2026 ; l'atelier renvoie
+  à l'outil officiel. À reprendre avec le PDF officiel en main.
 - [ ] Conservation de l'insuline (chaleur, canari), gestes du stylo, kit hypoglycémie.
 - [ ] Idées reçues (chapitre 9), relues par des soignants sénégalais.
 - [ ] Version wolof du niveau « Découvrir » (traduction relue par un soignant locuteur natif).
@@ -52,7 +57,8 @@ Mis à jour le 17 novembre 2026.
 ## Fait le 17 novembre 2026
 - Vue Corps lisible : flux de glucose chiffrés (g/heure) et bilan entrées/sorties ; une forme par substance ;
   le repas entre (bouchées), l'estomac se vide, l'intestin coupe l'amidon en glucose.
-- Interaction : suivre une molécule de glucose ou d'insuline ; atelier guidé « La clé et la porte » ; « Agir » (sucre,
+- Interaction : suivre une molécule de glucose ou d'insuline ; ateliers guidés « La clé et la porte » et « Jeûner en
+  sécurité » (Ramadan, moteur calibré) ; « Agir » (sucre,
   collation, repas, marche, insuline) ; bulle au survol de chaque objet de la scène.
 - Voyages commentés (glucose, insuline détaillée, défense contre l'hypoglycémie) ; vue « Petits vaisseaux » ;
   chaque maladie décrite dans chaque vue ; liens organe → maladies.

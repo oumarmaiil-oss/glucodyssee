@@ -1,5 +1,5 @@
 /** Scène principale : corps, îlot (2D/3D), cellule, rein ou courbes, animés par l'horloge de la journée. */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { apresDelaiEtVoix, choisirVoix, textePrononcable } from '../core/voix.ts';
 import { Activity, Camera, Pause, Speech, Play, RotateCcw, RotateCw, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, Maximize2, Minimize2, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { fmtHeure, Horloge, instantA } from '../core/clock.ts';
@@ -83,11 +83,13 @@ interface Props {
   allerA?: { minute: number; n: number } | null;
   peutRetour: boolean;
   onRetour: () => void;
+  /** Panneau d'un atelier piloté par l'application (ex. Ramadan), posé au bas de la scène. */
+  panneauBas?: ReactNode;
 }
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean; /** La voix off lit aussi l'explication. */ voixDetail?: boolean }
 
-export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, onAgir, nbAjouts, demandeSuivi, demandeAtelier = 0, figer, bandeau, siteMicroPatho, onLectureLocale, tourActif, lecture: lectureApp, onLecture: onLectureApp, site, onSite, allerA, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, onAgir, nbAjouts, demandeSuivi, demandeAtelier = 0, figer, bandeau, siteMicroPatho, onLectureLocale, tourActif, lecture: lectureApp, onLecture: onLectureApp, site, onSite, allerA, peutRetour, onRetour, panneauBas }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const petitEcran = typeof window !== 'undefined' && window.innerWidth < 700;
@@ -284,9 +286,9 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
     const large = window.innerWidth >= 1024;
     const decalageHote = lecture && !large ? 92 : 0;
     const bande = traces === 'aucun' || !avecTraces ? 0 : (traces === 'tout' ? 96 : 52) * (tailleScene.h >= 420 ? 1 : 0.6);
-    const basScene = Math.max(lecture ? 92 : 34, bande ? (lecture ? 74 : 40) + bande : 0);
+    const basScene = Math.max(lecture ? 92 : panneauBas ? 136 : 34, bande ? (lecture ? 74 : 40) + bande : 0);
     r.setMarges({ haut: 46, gauche: 46, droite: 10, bas: Math.max(8, basScene - decalageHote) });
-  }, [pret, vue, traces, avecTraces, !!lecture, tailleScene]);
+  }, [pret, vue, traces, avecTraces, !!lecture, !!panneauBas, tailleScene]);
 
   // Astuce 3D : à chaque ouverture de l'îlot 3D, jusqu'au premier geste.
   const [astuce3D, setAstuce3D] = useState(true);
@@ -441,10 +443,10 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
         )}
         <button onClick={() => setPleinEcran((v) => !v)} className={`btn-icone !w-8 !h-8 mt-1.5 !hidden lg:!grid ${pleinEcran ? 'actif' : ''}`} title={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-label={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-pressed={pleinEcran}>{pleinEcran ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
       </div>
-      <button onClick={() => setPleinEcran((v) => !v)} className={`lg:hidden absolute z-20 right-2 ${lecture ? 'top-12' : 'bottom-14'} btn-icone !w-8 !h-8 ${pleinEcran ? 'actif' : ''}`} title={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-label={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-pressed={pleinEcran}>{pleinEcran ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
+      <button onClick={() => setPleinEcran((v) => !v)} className={`lg:hidden absolute z-20 right-2 ${lecture || panneauBas ? 'top-12' : 'bottom-14'} btn-icone !w-8 !h-8 ${pleinEcran ? 'actif' : ''}`} title={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-label={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-pressed={pleinEcran}>{pleinEcran ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
 
       {/* Heure et glycémie de l'instant (comme la phase du cycle dans Hémodyssée) */}
-      <div className={`absolute ${lecture ? 'bottom-[96px] lg:bottom-auto' : 'bottom-2.5'} left-2 lg:bottom-auto lg:top-14 lg:left-12 flex items-center gap-1.5 rounded-full bg-ink/80 border border-line px-2 py-0.5 text-[11px] lg:text-xs text-txt pointer-events-none num`}>
+      <div className={`absolute ${lecture ? 'bottom-[96px] lg:bottom-auto' : panneauBas ? 'bottom-[140px] lg:bottom-auto' : 'bottom-2.5'} left-2 lg:bottom-auto lg:top-14 lg:left-12 flex items-center gap-1.5 rounded-full bg-ink/80 border border-line px-2 py-0.5 text-[11px] lg:text-xs text-txt pointer-events-none num`}>
         <span ref={pastilleRef} className="w-2 h-2 rounded-full bg-ok" />
         <span ref={capteurRef}>—</span>
       </div>
@@ -472,17 +474,17 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
           <button onClick={() => onVue(vuePour(zone))} className="font-semibold text-accent">{NOMS_VUES[vuePour(zone)]} →</button>
         </div>
       )}
-      {vue === 'cellule' && site === 'muscle' && pret && !lecture && !atelier && (
+      {vue === 'cellule' && site === 'muscle' && pret && !lecture && !atelier && !panneauBas && (
         <button onClick={ouvrirAtelier} className="absolute z-20 right-2 top-12 lg:top-14 rounded-full bg-[#38bdf8] hover:brightness-110 text-ink text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(56,189,248,.4)]">
           <Play size={13} fill="currentColor" /> Atelier : la clé et la porte
         </button>
       )}
-      {vue === 'vaisseau' && pret && !lecture && (
+      {vue === 'vaisseau' && pret && !lecture && !panneauBas && (
         <button onClick={() => setMicro({ i: 0, pause: false })} className="absolute z-20 right-2 top-12 lg:top-14 rounded-full bg-miel hover:brightness-110 text-ink text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(245,165,36,.45)]">
           <Play size={13} fill="currentColor" /> Les étapes de l'atteinte
         </button>
       )}
-      {bandeau && !lecture && !suivi && vue !== 'vaisseau' && vue !== 'courbe' && !nomSurvol && !(zone && !zoneDansVue(zone, vue)) && (
+      {bandeau && !lecture && !panneauBas && !suivi && vue !== 'vaisseau' && vue !== 'courbe' && !nomSurvol && !(zone && !zoneDansVue(zone, vue)) && (
         <div className="absolute z-10 top-12 lg:top-14 left-1/2 -translate-x-1/2 w-[min(66%,460px)] rounded-xl bg-ink/88 border border-miel/40 px-3 py-1.5 text-[11.5px] sm:text-xs leading-snug text-txt pointer-events-none text-center">{bandeau}</div>
       )}
       {vue === 'corps' && pret && bilan && !suivi && (
@@ -595,7 +597,7 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
             </div>
           </div>
         </div>
-      ) : atelier && etapeAt ? (
+      ) : panneauBas ? panneauBas : atelier && etapeAt ? (
         <div className="absolute z-20 bottom-2 left-1/2 -translate-x-1/2 w-[97%] max-w-xl rounded-2xl bg-ink/95 border border-[#38bdf8]/60 overflow-hidden fade-in" role="region" aria-label="Atelier la clé et la porte">
           <div className="flex gap-0.5 p-0.5">{ETAPES_ATELIER.map((_, k) => <div key={k} className={`h-1 flex-1 rounded-full ${k < atelier.etape ? 'bg-[#38bdf8]' : k === atelier.etape ? (reussiAt ? 'bg-ok' : 'bg-[#38bdf8]/50') : 'bg-card2'}`} />)}</div>
           <div className="px-3 pt-1.5 pb-2 space-y-1.5">
@@ -670,7 +672,7 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
       )}
 
       {traces !== 'aucun' && avecTraces && (
-        <canvas ref={cvTraces} className={`absolute left-0 right-0 ${lecture ? 'bottom-[96px] lg:bottom-[74px]' : 'bottom-10'} w-full ${traces === 'tout' ? 'h-[96px]' : 'h-[52px]'} pointer-events-none bg-gradient-to-b from-ink/30 to-ink/75`} />
+        <canvas ref={cvTraces} className={`absolute left-0 right-0 ${lecture ? 'bottom-[96px] lg:bottom-[74px]' : panneauBas ? 'bottom-[140px]' : 'bottom-10'} w-full ${traces === 'tout' ? 'h-[96px]' : 'h-[52px]'} pointer-events-none bg-gradient-to-b from-ink/30 to-ink/75`} />
       )}
 
       <div className={`absolute bottom-0.5 right-2 text-[9px] tracking-wide text-white/25 pointer-events-none select-none ${vue === 'ilot3d' ? 'hidden lg:block' : ''}`}>Glucodyssée · Dr O. Sow</div>

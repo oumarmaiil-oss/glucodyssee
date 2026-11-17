@@ -33,6 +33,12 @@ export function creerCourbe2D(conteneur: HTMLElement, opt: OptionsRendu = {}): R
     g.fillStyle = 'rgba(52,211,153,.13)'; g.fillRect(M.l, Y(180), W - M.l - M.r, Y(70) - Y(180));
     // Nuit.
     g.fillStyle = 'rgba(7,10,18,.35)'; g.fillRect(X(0), M.t, X(6.5) - X(0), Y(GMIN) - M.t); g.fillRect(X(22.5), M.t, X(24) - X(22.5), Y(GMIN) - M.t);
+    // Ramadan : la journée de jeûne, du sahur au ndogu.
+    if (e.terrain.ramadan) {
+      g.fillStyle = 'rgba(167,139,250,.09)'; g.fillRect(X(5.2), M.t, X(19.5) - X(5.2), Y(GMIN) - M.t);
+      g.font = '600 11px "Plus Jakarta Sans", system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#c4b5fd';
+      g.fillText('Jeûne : du sahur au ndogu', (X(5.2) + X(19.5)) / 2, M.t + 12);
+    }
     // Grille.
     g.font = '600 12px "Plus Jakarta Sans", system-ui'; g.textAlign = 'right'; g.textBaseline = 'middle';
     for (const v of [54, 70, 100, 180, 250, 300, 400]) {
