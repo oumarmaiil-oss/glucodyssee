@@ -122,3 +122,25 @@ test('contenu : zones, classes, cas cliniques et présentations bien reliés', (
     if (e.detail) { const t = terrain(e.actives); assert.ok(e.detail(calculer(t, e.traitement), calculer(t, {})).length > 5); }
   }
 });
+
+test('voyages et vues : chaque étape et chaque maladie ont un texte valable, quel que soit le patient', async () => {
+  const { VOYAGES, minuteDepart } = await import('../content/voyages.ts');
+  const { VUES_PATHO } = await import('../content/vuesPatho.ts');
+  const patients = [TERRAIN_SAIN, T1, T2, terrain([{ id: 'hypo', s: 0.7 }]), terrain([{ id: 't2', s: 0.4 }, { id: 'ramadan', s: 0.7 }])];
+  for (const v of VOYAGES) for (const t of patients) for (const tr of [{}, { basale: 1, rapide: 1 }, { glibenclamide: 1 }] as Traitement[]) {
+    const e = calculer(t, tr);
+    const m0 = minuteDepart(v, e);
+    assert.ok(m0 >= 0 && m0 < 1440);
+    for (const et of v.etapes) {
+      assert.ok(ZONES[et.z], `${v.id} : ${et.z}`);
+      const m = (m0 + (et.decalage ?? 0)) % 1440;
+      assert.ok(et.texte(t, e).length > 10);
+      for (const n of [1, 2, 3] as const) assert.ok(!/NaN|undefined/.test(et.detail(e, m, n)), `${v.id} ${et.z} : ${et.detail(e, m, n)}`);
+    }
+  }
+  for (const p of PATHOLOGIES) {
+    const vp = VUES_PATHO[p.id];
+    assert.ok(vp && Object.keys(vp.vues).length > 0, `${p.id} : vues manquantes`);
+    for (const k of Object.keys(vp.vues)) assert.ok(['corps', 'ilot', 'cellule', 'rein', 'courbe'].includes(k));
+  }
+});

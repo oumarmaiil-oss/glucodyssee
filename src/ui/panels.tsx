@@ -13,40 +13,15 @@ import { Quiz } from './Quiz.tsx';
 import { FicheImpression, imprimerFiche } from './Fiche.tsx';
 import { GraphiqueEvolution, LEGENDE_SCENARIOS, Moniteur, Risques } from './widgets.tsx';
 import { NOMS_VUES, vuePour, zoneDansVue, type Vue } from './Stage.tsx';
+import { VOYAGES, type Voyage, type VueVoyage } from '../content/voyages.ts';
+import { VUES_PATHO } from '../content/vuesPatho.ts';
+import { Route } from 'lucide-react';
 
 const NIVEAUX_NOMS: Record<Niveau, string> = { 1: 'Découvrir', 2: 'Comprendre', 3: 'Approfondir' };
 
-export const VOYAGE: { z: ZoneId; etape: string }[] = [
-  { z: 'estomac', etape: 'Le repas arrive : l\'amidon va devenir du glucose' },
-  { z: 'intestin', etape: 'Le glucose traverse la paroi de l\'intestin' },
-  { z: 'veinePorte', etape: 'La veine porte l\'emmène d\'abord au foie' },
-  { z: 'foie', etape: 'Le foie en garde une partie en réserve' },
-  { z: 'sang', etape: 'Le reste passe dans le sang : la glycémie monte' },
-  { z: 'pancreas', etape: 'Le pancréas sent le sucre monter' },
-  { z: 'ilot', etape: 'Les cellules bêta libèrent l\'insuline' },
-  { z: 'muscles', etape: 'L\'insuline ouvre les portes des muscles' },
-  { z: 'graisse', etape: 'Le tissu gras stocke aussi le surplus' },
-  { z: 'cerveau', etape: 'Le cerveau consomme du sucre, sans insuline' },
-  { z: 'reins', etape: 'Les reins filtrent le sang et récupèrent le sucre' },
-  { z: 'globules', etape: 'Le sucre colle à l\'hémoglobine : c\'est l\'HbA1c' },
-];
 export const ATTEINTES: ZoneId[] = ['yeux', 'nerfs', 'pieds', 'coeur'];
-
-/** Détails affichés pendant le voyage du sucre : [niveau Découvrir, niveaux Comprendre/Approfondir]. */
-export const DETAILS_VISITE: Partial<Record<ZoneId, [string, string]>> = {
-  estomac: ['Riz, mil, pain, manioc : leurs glucides deviennent du glucose.', 'Vidange gastrique progressive : elle règle la vitesse de montée du sucre'],
-  intestin: ['Le glucose passe dans le sang par la paroi de l\'intestin.', 'Transporteurs SGLT1 et GLUT2 · l\'intestin libère les incrétines (GLP-1, GIP)'],
-  veinePorte: ['Tout le sang de l\'intestin passe par le foie.', 'Le foie reçoit aussi l\'insuline du pancréas en premier, à forte concentration'],
-  foie: ['Le foie stocke le sucre en réserve.', 'Glycogène ≈ 100 g · à jeun, production ≈ 2 mg/kg/min'],
-  sang: ['À peine une cuillère à café de sucre dans tout le sang.', 'À jeun < 1,00 g/L · après le repas, retour en 2 à 3 heures'],
-  pancreas: ['Le pancréas surveille le sucre en permanence.', 'Les îlots : 1 à 2 % de la masse du pancréas'],
-  ilot: ['Les cellules bêta fabriquent l\'insuline : la clé.', '≈ 55 % de cellules bêta, 35 % alpha, 10 % delta'],
-  muscles: ['La clé ouvre la porte : le sucre entre dans le muscle.', 'Récepteur de l\'insuline → transporteurs GLUT4 à la surface'],
-  graisse: ['Le surplus d\'énergie est stocké.', 'L\'insuline freine aussi la libération des graisses'],
-  cerveau: ['Le cerveau a besoin de sucre en permanence.', '≈ 120 g de glucose par jour, sans insuline'],
-  reins: ['Les reins récupèrent tout le sucre filtré.', '≈ 180 g filtrés par jour · seuil ≈ 1,80 g/L · SGLT2 ≈ 90 %'],
-  globules: ['L\'HbA1c raconte les 3 derniers mois.', 'HbA1c 7 % ≈ glycémie moyenne 1,54 g/L (ADAG)'],
-};
+/** Étapes du voyage du glucose, pour les flèches précédent / suivant d'une zone. */
+const VOYAGE_Z: ZoneId[] = ['estomac', 'intestin', 'veinePorte', 'foie', 'sang', 'pancreas', 'ilot', 'muscles', 'graisse', 'cerveau', 'reins', 'globules'];
 
 function Texte3({ textes, niveau }: { textes: Record<Niveau, string>; niveau: Niveau }) {
   const [plus, setPlus] = useState(false);
@@ -67,47 +42,67 @@ function Texte3({ textes, niveau }: { textes: Record<Niveau, string>; niveau: Ni
 
 // ─────────────────────────── Explorer ───────────────────────────
 
-export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho }: {
+function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone }: {
+  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; repas: Repas[]; onRepas: (r: Repas[]) => void; onZone: (z: ZoneId | null) => void;
+}) {
+  const [choix, setChoix] = useState<Voyage['id']>('glucose');
+  const v = VOYAGES.find((x) => x.id === choix)!;
+  return (
+    <div className="space-y-4 fade-in">
+      <div>
+        <h2 className="font-display text-xl">Les voyages</h2>
+        <p className="text-sm text-muted mt-1">Suivez le glucose, l'insuline ou la défense contre l'hypoglycémie, d'un organe à l'autre et d'une vue à l'autre. Touchez une étape, ou un organe dans la scène pour voir ses maladies.</p>
+      </div>
+      <div className="seg w-full [&>button]:flex-1" role="tablist" aria-label="Voyage">
+        {VOYAGES.map((x) => <button key={x.id} role="tab" aria-selected={choix === x.id} className={choix === x.id ? 'actif' : ''} onClick={() => setChoix(x.id)}>{x.court}</button>)}
+      </div>
+      <button onClick={() => onVoyage(v.id)} className="w-full rounded-xl text-ink font-bold text-[13.5px] py-2.5 inline-flex items-center justify-center gap-2" style={{ background: v.couleur }}><Play size={14} fill="currentColor" /> Lancer : {v.titre.toLowerCase()}</button>
+      <ol className="relative border-l border-line ml-2 space-y-1">
+        {v.etapes.map((e, k) => (
+          <li key={k} className="pl-4 relative">
+            <span className="absolute -left-[5px] top-2.5 w-2.5 h-2.5 rounded-full" style={{ background: v.couleur }} />
+            <button onClick={() => onVoirVue(e.z, e.vue, e.site)} className="w-full text-left rounded-lg px-2 py-1.5 hover:bg-card">
+              <div className="text-[13.5px] font-semibold flex items-center justify-between gap-2"><span>{ZONES[e.z].nom}</span><span className="text-[10.5px] text-dim font-normal">vue {NOMS_VUES[e.vue].replace(' 2D', '')}{e.site ? ` · ${e.site}` : ''}</span></div>
+              <div className="text-xs text-muted">{ETAPE_COURTE[v.id][k]}</div>
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div className="carte p-3">
+        <div className="titre-section mb-2">Là où le sucre en excès abîme</div>
+        <div className="flex gap-2 flex-wrap">{ATTEINTES.map((z) => <button key={z} className="puce" onClick={() => onZone(z)}>{ZONES[z].nom}</button>)}</div>
+      </div>
+      <div className="carte p-3 space-y-2">
+        <div className="titre-section flex items-center gap-1.5"><Utensils size={13} /> Ce que la personne mange</div>
+        <p className="text-[12px] text-muted">Glucides de chaque repas (en grammes). Repère : une assiette de riz cuit (≈ 200 g) apporte environ 55 g de glucides.</p>
+        {repas.map((r, k) => (
+          <label key={r.nom} className="block">
+            <span className="text-xs text-muted flex justify-between"><span>{r.nom} ({String(Math.floor(r.h)).padStart(2, '0')} h {String(Math.round((r.h % 1) * 60)).padStart(2, '0')})</span><span className="num text-txt">{r.g} g</span></span>
+            <input type="range" min={0} max={150} step={10} value={r.g} onChange={(e) => onRepas(repas.map((x, j) => (j === k ? { ...x, g: +e.target.value } : x)))} aria-label={`Glucides du ${r.nom}`} />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Résumé court de chaque étape, pour la liste (le texte complet s'adapte au patient pendant le voyage). */
+const ETAPE_COURTE: Record<Voyage['id'], string[]> = {
+  glucose: ['Le repas arrive : l\'amidon va devenir du glucose', 'Le glucose traverse la paroi de l\'intestin', 'La veine porte l\'emmène d\'abord au foie', 'Le foie en garde une partie en réserve', 'Le reste passe dans le sang : la glycémie monte', 'Le pancréas sent le sucre monter', 'Les cellules bêta libèrent l\'insuline', 'L\'insuline ouvre les portes des muscles', 'Le tissu gras stocke aussi le surplus', 'Le cerveau consomme du sucre, sans insuline', 'Les reins filtrent le sang et récupèrent le sucre', 'Le sucre colle à l\'hémoglobine : c\'est l\'HbA1c'],
+  insuline: ['Les cellules bêta détectent le sucre', 'Elles libèrent l\'insuline (canaux K-ATP)', 'L\'insuline part d\'abord vers le foie', 'Le foie en garde environ la moitié', 'Le reste circule dans tout le corps', 'Sur le muscle, la clé ouvre la porte GLUT4', 'Sur la graisse, elle fait stocker', 'Dans l\'îlot, elle freine le glucagon', 'Le foie et le rein la détruisent en quelques minutes'],
+  defense: ['Le sucre descend sous 0,70 g/L', 'Les cellules bêta s\'arrêtent (sauf sous sulfamide)', 'Les cellules alpha libèrent le glucagon', 'Le foie vide ses réserves', 'Le cerveau souffre en premier', 'Règle des 15 : 15 g de sucre'],
+};
+
+export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue }: {
   zone: ZoneId | null; niveau: Niveau; vue: Vue; actives: PathoActive[]; repas: Repas[]; onRepas: (r: Repas[]) => void;
+  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void;
   onZone: (z: ZoneId | null) => void; onTogglePatho: (id: string) => void; onVue: (v: Vue) => void; onVoirPatho: (id: string) => void;
 }) {
   if (!zone) {
-    return (
-      <div className="space-y-4 fade-in">
-        <div>
-          <h2 className="font-display text-xl">Le voyage du sucre</h2>
-          <p className="text-sm text-muted mt-1">Suivez le glucose d'un repas, de l'assiette jusqu'aux cellules. Touchez une étape, ou directement un organe dans la scène.</p>
-        </div>
-        <ol className="relative border-l border-line ml-2 space-y-1">
-          {VOYAGE.map((v) => (
-            <li key={v.z} className="pl-4 relative">
-              <span className="absolute -left-[5px] top-2.5 w-2.5 h-2.5 rounded-full bg-miel" />
-              <button onClick={() => onZone(v.z)} className="w-full text-left rounded-lg px-2 py-1.5 hover:bg-card">
-                <div className="text-[13.5px] font-semibold">{ZONES[v.z].nom}</div>
-                <div className="text-xs text-muted">{v.etape}</div>
-              </button>
-            </li>
-          ))}
-        </ol>
-        <div className="carte p-3">
-          <div className="titre-section mb-2">Là où le sucre en excès abîme</div>
-          <div className="flex gap-2 flex-wrap">{ATTEINTES.map((z) => <button key={z} className="puce" onClick={() => onZone(z)}>{ZONES[z].nom}</button>)}</div>
-        </div>
-        <div className="carte p-3 space-y-2">
-          <div className="titre-section flex items-center gap-1.5"><Utensils size={13} /> La journée type</div>
-          <p className="text-[12px] text-muted">Glucides de chaque repas (en grammes). Repère : une assiette de riz cuit (≈ 200 g) apporte environ 55 g de glucides.</p>
-          {repas.map((r, k) => (
-            <label key={r.nom} className="block">
-              <span className="text-xs text-muted flex justify-between"><span>{r.nom} ({String(Math.floor(r.h)).padStart(2, '0')} h {String(Math.round((r.h % 1) * 60)).padStart(2, '0')})</span><span className="num text-txt">{r.g} g</span></span>
-              <input type="range" min={0} max={150} step={10} value={r.g} onChange={(e) => onRepas(repas.map((x, j) => (j === k ? { ...x, g: +e.target.value } : x)))} aria-label={`Glucides du ${r.nom}`} />
-            </label>
-          ))}
-        </div>
-      </div>
-    );
+    return <AccueilExplorer onVoyage={onVoyage} onVoirVue={onVoirVue} repas={repas} onRepas={onRepas} onZone={onZone} />;
   }
   const z = ZONES[zone];
-  const idx = VOYAGE.findIndex((v) => v.z === zone);
+  const idx = VOYAGE_Z.indexOf(zone);
   const pathos = PATHOLOGIES.filter((p) => p.zones.includes(zone) && p.niveauMin <= Math.max(niveau, 2));
   const classes = CLASSES.filter((c) => c.zone === zone);
   const pasDansVue = !zoneDansVue(zone, vue);
@@ -115,13 +110,13 @@ export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, on
     <div className="space-y-4 fade-in" key={zone}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <button onClick={() => onZone(null)} className="text-xs text-muted inline-flex items-center gap-1 hover:text-txt"><ArrowLeft size={13} /> Le voyage</button>
+          <button onClick={() => onZone(null)} className="text-xs text-muted inline-flex items-center gap-1 hover:text-txt"><ArrowLeft size={13} /> Les voyages</button>
           <h2 className="font-display text-2xl mt-1 flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-miel" />{z.nom}</h2>
         </div>
         {idx >= 0 && (
           <div className="flex gap-1 shrink-0 mt-5">
-            <button className="btn-icone" disabled={idx === 0} onClick={() => onZone(VOYAGE[idx - 1].z)} aria-label="Étape précédente"><ArrowLeft size={15} /></button>
-            <button className="btn-icone" disabled={idx === VOYAGE.length - 1} onClick={() => onZone(VOYAGE[idx + 1].z)} aria-label="Étape suivante"><ArrowRight size={15} /></button>
+            <button className="btn-icone" disabled={idx === 0} onClick={() => onZone(VOYAGE_Z[idx - 1])} aria-label="Étape précédente"><ArrowLeft size={15} /></button>
+            <button className="btn-icone" disabled={idx === VOYAGE_Z.length - 1} onClick={() => onZone(VOYAGE_Z[idx + 1])} aria-label="Étape suivante"><ArrowRight size={15} /></button>
           </div>
         )}
       </div>
@@ -222,10 +217,15 @@ export function PanneauMaladies(props: {
           )}
           <section className="carte p-3.5"><div className="titre-section mb-1">Ce qui se passe</div><Texte3 textes={f.texte} niveau={niveau} /></section>
           <section className="carte p-3.5"><div className="titre-section mb-1">Ce qu'on voit</div><p className="text-[13.5px] text-muted">{f.voir}</p>
-            <div className="flex flex-wrap gap-1.5 mt-2.5">
-              {(['corps', 'ilot', 'cellule', 'rein', 'courbe'] as const).map((v) => {
+            <div className="space-y-1.5 mt-2.5">
+              {(Object.entries(VUES_PATHO[f.id]?.vues ?? {}) as [VueVoyage, string][]).map(([v, txt]) => {
                 const actif = vue === v || (v === 'ilot' && vue === 'ilot3d');
-                return <button key={v} onClick={() => props.onVoir(v)} className={`puce ${actif ? 'actif' : ''}`}>{actif && <Check size={13} />}Vue {NOMS_VUES[v].replace(' 2D', '')}</button>;
+                return (
+                  <button key={v} onClick={() => props.onVoir(v)} className={`w-full text-left rounded-lg border px-2.5 py-1.5 ${actif ? 'border-miel/60 bg-miel/10' : 'border-line bg-card hover:border-miel/40'}`}>
+                    <span className="text-[12.5px] font-semibold inline-flex items-center gap-1">{actif && <Check size={13} />}Vue {NOMS_VUES[v].replace(' 2D', '')}</span>
+                    <span className="block text-[12px] text-muted leading-snug">{txt}</span>
+                  </button>
+                );
               })}
             </div>
             <div className="titre-section mt-3 mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul></section>

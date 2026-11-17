@@ -41,6 +41,9 @@ const ABS = chemin([[300, 480], [282, 450], [270, 410], [258, 372], [250, 350], 
 const INS_PANC = chemin([[330, 392], [290, 400], [270, 395], [258, 372], [250, 350], [276, 312], [300, 280], COEUR]);
 const INS_INJ = chemin([[372, 520], [340, 500], [306, 470], [302, 330], COEUR]);
 /** Urine : rein → uretère → vessie. */
+/** Hormones : GLP-1 de l'intestin vers le pancréas (après le repas) ; glucagon du pancréas vers le foie. */
+const GLP1 = chemin([[300, 470], [316, 440], [330, 412], [336, 396]]);
+const GLUCAGON = chemin([[318, 394], [290, 400], [270, 395], [258, 372], [244, 350]]);
 const URINE = [chemin([[232, 432], [252, 500], [292, 572]]), chemin([[376, 432], [352, 500], [308, 572]])];
 
 const REGIONS: Region[] = [
@@ -69,6 +72,8 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
   const absP: { s: number; o: number }[] = [];
   const ins: { c: Chemin | null; b: number; s: number; o: number; vie: number }[] = [];
   const urine: { k: number; s: number }[] = [];
+  const horm: { c: Chemin; s: number; o: number; coul: string }[] = [];
+  let accGlp = 0, accGlu = 0;
   let vessie = 0; // remplissage visuel de la vessie en glucose
   const glow = { cerveau: 0, muscles: 0, reins: 0, graisse: 0, foie: 0 };
   let spawnAbs = 0, spawnFoie = 0, spawnIns = 0, spawnUr = 0;
@@ -114,6 +119,14 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     for (let j = urine.length - 1; j >= 0; j--) if (urine[j].s >= 1) { urine.splice(j, 1); vessie = Math.min(1, vessie + 0.04); }
     vessie = Math.max(0, vessie - dt * 0.03);
     for (const o of Object.keys(glow) as Organe[]) glow[o] = Math.max(0, glow[o] - dt * 0.6);
+    // Hormones : GLP-1 libéré par l'intestin au repas (renforcé par les iDPP-4) ; glucagon quand le sucre baisse.
+    const tr = e.traitement;
+    accGlp += (i.Ra / (i.Ra + 3)) * (e.terrain.inc + ((tr.idpp4 ?? 0) > 0 ? 0.8 : 0)) * 10 * k * dt;
+    while (accGlp >= 1) { accGlp -= 1; horm.push({ c: GLP1, s: 0, o: Math.random() - 0.5, coul: '#f472b6' }); }
+    accGlu += clamp(i.glucagon - 0.6, 0, 3) * 9 * k * dt;
+    while (accGlu >= 1) { accGlu -= 1; horm.push({ c: GLUCAGON, s: 0, o: Math.random() - 0.5, coul: '#c084fc' }); }
+    for (const h of horm) h.s += (90 * dt) / h.c.len;
+    for (let j = horm.length - 1; j >= 0; j--) if (horm[j].s >= 1) horm.splice(j, 1);
     // Insuline : densité proportionnelle à l'insuline du sang ; source pancréas ou site d'injection.
     const cibleIns = Math.round(clamp(i.I, 0, 120) * 0.45 * k);
     spawnIns += (i.S * 1.6 + (i.injection ? 6 : 0)) * k * dt;
@@ -202,7 +215,7 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     g.beginPath(); g.moveTo(292, 396); g.quadraticCurveTo(330, 380, 384, 386); g.quadraticCurveTo(388, 398, 378, 400); g.quadraticCurveTo(330, 404, 296, 406); g.closePath(); g.fill();
 
     // Reins et vessie.
-    const pale = clamp(t?.nephro ?? 0, 0, 1);
+    const pale = clamp(Math.max(t?.nephro ?? 0, 1 - (t?.rein ?? 1) * 1.2), 0, 1);
     for (const x of [232, 376]) { g.fillStyle = mix([200, 80, 90], [170, 150, 150], pale); g.beginPath(); g.ellipse(x, 425, 15, 23, 0, 0, 7); g.fill(); if (glow.reins > 0.05) { g.fillStyle = `rgba(245,176,39,${0.35 * glow.reins})`; g.beginPath(); g.ellipse(x, 425, 18, 26, 0, 0, 7); g.fill(); } }
     g.strokeStyle = 'rgba(250,230,150,.35)'; g.lineWidth = 2.5;
     for (const u of URINE) { g.beginPath(); g.moveTo(...u.pts[0]); for (const p of u.pts.slice(1)) g.lineTo(...p); g.stroke(); }
@@ -252,6 +265,8 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     g.fillStyle = COUL.insuline;
     for (const p of ins) { const [x, y] = p.c ? at(p.c, p.s) : at(BOUCLES[p.b].c, p.s); g.beginPath(); g.arc(x - p.o * 4, y, 2.1, 0, 7); g.fill(); }
 
+    for (const h of horm) { const [x, y] = at(h.c, h.s); g.fillStyle = h.coul; g.beginPath(); g.arc(x + h.o * 3, y, 2.4, 0, 7); g.fill(); }
+    if (i.glucagon > 1.15) texte('Glucagon : le pancréas demande au foie de libérer du sucre', 160, 270, '#d8b4fe');
     // Site d'injection.
     if (i.injection) { g.strokeStyle = COUL.insuline; g.lineWidth = 2; g.beginPath(); g.moveTo(392, 506); g.lineTo(374, 520); g.stroke(); g.fillStyle = COUL.insuline; g.beginPath(); g.arc(372, 521, 3, 0, 7); g.fill(); texte(i.injection, 450, 506, '#7dd3fc'); }
     // Graisses libérées sans insuline (type 1 non traité) : vers le foie, corps cétoniques.
@@ -277,7 +292,9 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     if (neuro > 0.05) texte('Neuropathie : fourmillements, pieds insensibles', 300, 860, '#fde68a');
     if ((t?.pied ?? 0) > 0.05) texte('Plaie du pied', 160, 916, '#fb7185');
     if ((t?.coronaire ?? 0) > 0.05) texte('Artères du cœur atteintes', 420, 240, '#fca5a5');
-    if (pale > 0.05) texte('Reins abîmés', 160, 456, '#fca5a5');
+    if (pale > 0.05) texte((t?.nephro ?? 0) > 0.05 ? 'Reins abîmés (néphropathie)' : 'Reins qui filtrent moins', 160, 456, '#fca5a5');
+    if (t?.type === 'gestationnel') texte('Grossesse : les hormones du placenta gênent l\'insuline', 300, 452, '#f9a8d4');
+    if (t?.ramadan && i.heure > 5.5 && i.heure < 19.5) texte('Ramadan : jeûne jusqu\'au ndogu', 452, 300, '#fde68a');
 
     if (c.labels) {
       texte('Cerveau', 300, 14); texte('Cœur', 372, 262); texte('Foie', 196, 360); texte('Estomac', 412, 344); texte('Pancréas', 350, 372);

@@ -13,6 +13,8 @@ import { creerCellule2D } from '../render/cellule2d.ts';
 import { creerRein2D } from '../render/rein2d.ts';
 import { creerCourbe2D } from '../render/courbe2d.ts';
 import { creerTraces, type ModeTraces, type Traces } from '../render/traces.ts';
+import { VOYAGES, type Voyage } from '../content/voyages.ts';
+import { Route } from 'lucide-react';
 
 export type Vue = 'corps' | 'ilot' | 'ilot3d' | 'cellule' | 'rein' | 'courbe';
 export type SiteCellule = 'muscle' | 'foie';
@@ -52,7 +54,11 @@ interface Props {
   onRalenti: () => void;
   legende: string;
   onVue: (v: Vue) => void;
-  onVoyage: () => void;
+  onVoyage: (id: Voyage['id']) => void;
+  /** Minute imposée par un voyage guidé : l'horloge s'y fige (null = la journée défile). */
+  figer: number | null;
+  /** Ce que la maladie ouverte montre dans cette vue. */
+  bandeau: string | null;
   tourActif: boolean;
   /** Lecture en cours (voyage du sucre, présentation, effet du traitement dans le temps). */
   lecture: Lecture | null;
@@ -67,7 +73,7 @@ interface Props {
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean; /** La voix off lit aussi l'explication. */ voixDetail?: boolean }
 
-export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, tourActif, lecture, onLecture, site, onSite, allerA, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, figer, bandeau, tourActif, lecture, onLecture, site, onSite, allerA, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const petitEcran = typeof window !== 'undefined' && window.innerWidth < 700;
@@ -113,7 +119,11 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
   etatRef.current = etat;
   useEffect(() => { rendu.current?.maj(etat, etatSans); }, [etat, etatSans]);
   useEffect(() => { horloge.current.vitesse = ralenti ? 0.35 : 1; }, [ralenti]);
-  useEffect(() => { horloge.current.pause = pauseJour; }, [pauseJour]);
+  useEffect(() => {
+    if (figer !== null) { horloge.current.aller(figer); horloge.current.pause = true; }
+    else horloge.current.pause = pauseJour;
+  }, [pauseJour, figer]);
+  const [menuVoyages, setMenuVoyages] = useState(false);
   useEffect(() => { if (allerA) horloge.current.aller(allerA.minute); }, [allerA?.n]);
   useEffect(() => { setEtiquettes(niveau === 1 && !petitEcran); }, [niveau]);
 
@@ -387,6 +397,17 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
           <button onClick={() => onVue(vuePour(zone))} className="font-semibold text-accent">{NOMS_VUES[vuePour(zone)]} →</button>
         </div>
       )}
+      {bandeau && !lecture && !nomSurvol && !(zone && !zoneDansVue(zone, vue)) && (
+        <div className="absolute z-10 top-12 lg:top-14 left-1/2 -translate-x-1/2 w-[min(66%,460px)] rounded-xl bg-ink/88 border border-miel/40 px-3 py-1.5 text-[11.5px] sm:text-xs leading-snug text-txt pointer-events-none text-center">{bandeau}</div>
+      )}
+      {vue === 'corps' && pret && (
+        <div className="absolute z-10 right-2 top-12 lg:top-14 rounded-xl bg-ink/80 border border-line px-2 py-1 text-[10.5px] space-y-0.5 pointer-events-none hidden sm:block">
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rotate-45 bg-[#f5b027]" /> Glucose</div>
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#38bdf8]" /> Insuline</div>
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#c084fc]" /> Glucagon</div>
+          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#f472b6]" /> GLP-1 (incrétine)</div>
+        </div>
+      )}
       {nomSurvol && (
         <div className="absolute top-12 lg:top-14 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 border border-line px-3 py-1 text-xs font-semibold pointer-events-none z-10">{nomSurvol} · cliquer pour zoomer</div>
       )}
@@ -452,10 +473,25 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
             </div>
           </div>
         </div>
-      ) : vue === 'corps' && pret && !tourActif && (
-        <button onClick={onVoyage} aria-label="Voir le voyage du sucre" className="absolute bottom-6 right-2 sm:bottom-7 lg:bottom-2.5 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 whitespace-nowrap rounded-full bg-miel/90 sm:bg-miel hover:brightness-110 active:scale-95 transition-transform text-ink text-[10.5px] sm:text-[12px] font-bold pl-1.5 pr-2 py-0.5 sm:pl-2.5 sm:pr-3.5 sm:py-1.5 inline-flex items-center gap-1 sm:gap-1.5 touch-manipulation before:absolute before:-inset-2.5 before:content-[''] sm:before:hidden shadow-[0_1px_6px_rgba(245,165,36,.3)] sm:shadow-[0_4px_18px_rgba(245,165,36,.45)]">
-          <Play size={9} fill="currentColor" className="sm:hidden" /><Play size={13} fill="currentColor" className="hidden sm:block" /> <span className="sm:hidden">Voyage</span><span className="hidden sm:inline">Voir le voyage du sucre</span>
-        </button>
+      ) : pret && !tourActif && (
+        <>
+          <button onClick={() => setMenuVoyages((v) => !v)} aria-expanded={menuVoyages} aria-label="Voyages guidés" className="absolute z-20 bottom-6 right-2 sm:bottom-7 lg:bottom-2.5 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 whitespace-nowrap rounded-full bg-miel/90 sm:bg-miel hover:brightness-110 active:scale-95 transition-transform text-ink text-[10.5px] sm:text-[12px] font-bold pl-1.5 pr-2 py-0.5 sm:pl-2.5 sm:pr-3.5 sm:py-1.5 inline-flex items-center gap-1 sm:gap-1.5 touch-manipulation before:absolute before:-inset-2.5 before:content-[''] sm:before:hidden shadow-[0_1px_6px_rgba(245,165,36,.3)] sm:shadow-[0_4px_18px_rgba(245,165,36,.45)]">
+            <Route size={13} /> <span className="sm:hidden">Voyages</span><span className="hidden sm:inline">Voyages guidés</span>
+          </button>
+          {menuVoyages && (
+            <>
+              <div className="absolute inset-0 z-20" onClick={() => setMenuVoyages(false)} aria-hidden="true" />
+              <div className="absolute z-30 bottom-14 right-2 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-64 rounded-xl bg-ink/95 border border-line p-1.5 shadow-xl fade-in" role="menu" aria-label="Voyages guidés">
+                {VOYAGES.map((v) => (
+                  <button key={v.id} role="menuitem" onClick={() => { setMenuVoyages(false); onVoyage(v.id); }} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 active:bg-card2">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ background: v.couleur }} />
+                    <span><span className="block text-[13px] font-semibold">{v.titre}</span><span className="block text-[11px] text-dim">{v.pour} · {v.etapes.length} étapes</span></span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </>
       )}
 
       {traces !== 'aucun' && avecTraces && (

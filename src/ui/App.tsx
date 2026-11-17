@@ -14,7 +14,9 @@ import { CLASSE_PAR_ID } from '../content/classes.ts';
 import { Stage, zoneDansVue, type SiteCellule, type Vue } from './Stage.tsx';
 import { PRESENTATION_PAR_ID } from '../content/presentations.ts';
 import { Moniteur } from './widgets.tsx';
-import { DETAILS_VISITE, PanneauEvolution, PanneauExplorer, PanneauMaladies, VOYAGE, type VueEvolution } from './panels.tsx';
+import { PanneauEvolution, PanneauExplorer, PanneauMaladies, type VueEvolution } from './panels.tsx';
+import { minuteDepart, VOYAGE_PAR_ID, type Voyage } from '../content/voyages.ts';
+import { VUES_PATHO } from '../content/vuesPatho.ts';
 
 type Onglet = 'explorer' | 'maladies' | 'evolution';
 
@@ -85,23 +87,30 @@ export default function App() {
   const etatScene = evoScene?.etat ?? etatAuj;
   const etatSansScene = evoScene?.sans ?? etatSans;
 
+  // Bandeau de la scène : ce que la maladie ouverte (ou la dernière ajoutée) montre dans la vue en cours.
+  const pathoVue = focusPatho && actives.some((a) => a.id === focusPatho) ? focusPatho : actives[actives.length - 1]?.id ?? null;
+  const vueCle = vue === 'ilot3d' ? 'ilot' : vue;
+  const bandeauPatho = pathoVue && VUES_PATHO[pathoVue]?.vues[vueCle] ? `${PATHO_PAR_ID[pathoVue].court} · ${VUES_PATHO[pathoVue].vues[vueCle]}` : null;
   const legende = [
     actives.map((a) => PATHO_PAR_ID[a.id].court).join(' + ') || 'Sujet sain',
     Object.keys(traitement).length ? 'Traitement : ' + (Object.keys(traitement) as ClasseId[]).map((c) => CLASSE_PAR_ID[c].court).join(', ') : '',
     `HbA1c ${etatScene.stats.hba1c.toFixed(1).replace('.', ',')} %`,
   ].filter(Boolean).join(' · ');
 
-  // Voyage du sucre : la scène suit le glucose étape par étape.
-  const [tour, setTour] = useState<number | null>(null);
+  const [tour, setTour] = useState<{ id: Voyage['id']; i: number } | null>(null);
   const [tourPause, setTourPause] = useState(false);
+  const voyage = tour ? VOYAGE_PAR_ID[tour.id] : null;
+  const etapeVoyage = tour && voyage ? voyage.etapes[tour.i] : null;
+  const departVoyage = useMemo(() => (voyage ? minuteDepart(voyage, etatAuj) : 0), [voyage, etatAuj]);
+  const minuteVoyage = etapeVoyage ? departVoyage + (etapeVoyage.decalage ?? 0) : null;
   useEffect(() => {
-    if (tour === null) return;
-    const z = VOYAGE[tour].z;
-    setZone(z); setVue(VUE_ETAPE[z] ?? 'corps');
-    if (tour === 0) setAllerA({ minute: 13 * 60 + 20, n: Date.now() });
+    if (!tour || !etapeVoyage || !voyage) return;
+    setZone(etapeVoyage.z); setVue(etapeVoyage.vue === 'ilot' ? modeIlotRef.current : etapeVoyage.vue);
+    if (etapeVoyage.site) setSite(etapeVoyage.site);
     if (tourPause) return;
-    return apresDelaiEtVoix(5600, () => setTour((k) => (k === null || k >= VOYAGE.length - 1 ? null : k + 1)));
+    return apresDelaiEtVoix(6000, () => setTour((k) => (!k || k.i >= voyage.etapes.length - 1 ? null : { ...k, i: k.i + 1 })));
   }, [tour, tourPause]);
+  const lancerVoyage = (id: Voyage['id']) => { setSeq(null); setPres(null); setTourPause(false); setTour({ id, i: 0 }); };
   useEffect(() => { if (tour === null) setTourPause(false); }, [tour]);
 
   // Effet du traitement dans le temps : avant, puis 3 mois, 1 an, 3 ans, 5 ans, 10 ans.
@@ -153,6 +162,7 @@ export default function App() {
 
   const [histo, setHisto] = useState<ZoneId[]>([]);
   const [modeIlot, setModeIlot] = useState<'ilot' | 'ilot3d'>('ilot');
+  const modeIlotRef = useRef(modeIlot); modeIlotRef.current = modeIlot;
   useEffect(() => { if (vue === 'ilot' || vue === 'ilot3d') setModeIlot(vue); }, [vue]);
   const choisirNiveau = (n: Niveau) => { setNiveau(n); ecrire('gluco.niveau', String(n)); setAccueil(false); };
   const togglePatho = (id: string) => {
@@ -304,17 +314,17 @@ export default function App() {
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
           <div className={`${tour !== null || seq !== null || pres ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
             <Stage key={cleScene} vue={vue} etat={etatScene} etatSans={etatSansScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={vueManuelle}
-              onVoyage={() => { setSeq(null); setPres(null); setTourPause(false); setTour(0); }}
+              onVoyage={lancerVoyage} figer={minuteVoyage} bandeau={bandeauPatho}
               tourActif={tour !== null} site={site} onSite={setSite} allerA={allerA}
-              lecture={tour !== null ? { titre: 'Voyage du sucre', texte: VOYAGE[tour].etape, detail: DETAILS_VISITE[VOYAGE[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: VOYAGE.length, pause: tourPause, voixDetail: true }
+              lecture={tour && voyage && etapeVoyage && minuteVoyage !== null ? { titre: voyage.titre, texte: etapeVoyage.texte(etatScene.terrain, etatScene), detail: etapeVoyage.detail(etatScene, ((minuteVoyage % 1440) + 1440) % 1440, niveau), index: tour.i, total: voyage.etapes.length, pause: tourPause, voixDetail: true }
                 : pres && etapePres ? { titre: PRESENTATION_PAR_ID[pres.id].titre, texte: etapePres.texte, detail: etapePres.detail?.(etatScene, etatSansScene), index: pres.i, total: PRESENTATION_PAR_ID[pres.id].etapes.length, pause: pres.pause, voixDetail: true }
                 : seq !== null ? { titre: 'Effet du traitement', texte: PHASES[seq].nom, detail: `HbA1c ${etatScene.stats.hba1c.toFixed(1)} % · temps dans la cible ${Math.round(etatScene.stats.tir * 100)} % · risque microvasculaire ×${etatScene.risques.micro.toFixed(1)}`, index: seq, total: PHASES.length, pause: seqPause } : null}
               onLecture={(a) => {
-                if (tour !== null) {
+                if (tour && voyage) {
                   if (a === 'pause') setTourPause((p) => !p);
-                  else if (a === 'prev') setTour((k) => Math.max(0, (k ?? 0) - 1));
-                  else if (a === 'next') setTour((k) => Math.min(VOYAGE.length - 1, (k ?? 0) + 1));
-                  else if (a === 'restart') { setTourPause(false); setTour(0); }
+                  else if (a === 'prev') setTour({ ...tour, i: Math.max(0, tour.i - 1) });
+                  else if (a === 'next') setTour({ ...tour, i: Math.min(voyage.etapes.length - 1, tour.i + 1) });
+                  else if (a === 'restart') { setTourPause(false); setTour({ ...tour, i: 0 }); }
                   else { setTour(null); setZone(null); }
                 } else if (pres) {
                   const n = PRESENTATION_PAR_ID[pres.id].etapes.length;
@@ -373,10 +383,10 @@ export default function App() {
           )}
           <div className="relative flex-1 min-h-0 flex flex-col">
           <div ref={panneau} className="flex-1 overflow-y-auto scroll-thin p-3.5 pr-5 lg:pr-3.5" data-testid="panneau">
-            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
+            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} onVoyage={lancerVoyage} onVoirVue={(z, v, st) => { onZone(z); if (st) setSite(st); vueManuelle(v === 'ilot' ? modeIlot : v); }} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
             {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} terrain={terrain} etat={etatAuj} etatSans={etatSans}
               onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer} onResucrage={resucrer}
-              onVoir={(v) => { setTour(null); setSeq(null); vueManuelle(v === 'ilot' ? modeIlot : v); }}
+              onVoir={(v) => { setTour(null); setSeq(null); const sp = focusPatho ? VUES_PATHO[focusPatho]?.site : undefined; if (v === 'cellule' && sp) setSite(sp); vueManuelle(v === 'ilot' ? modeIlot : v); }}
               onPresentation={lancerPresentation}
               onCas={(a, t, z) => { setPres(null); setSeq(null); setTour(null); setActives(a); setTraitement(t); setVueEvo(null); setZone(z); setCollations([]); }}
               onSeverite={(id, s) => setActives((a) => a.map((x) => (x.id === id ? { ...x, s } : x)))}

@@ -51,7 +51,7 @@ export const TYPES_DIABETE = ['prediabete', 't1', 't2', 'gestationnel', 'acidoce
 export const PATHOLOGIES: Pathologie[] = [
   // ── Les diabètes ──
   {
-    id: 't2', nom: 'Diabète de type 2', court: 'Type 2', famille: 'diabetes', zones: ['muscles', 'foie', 'pancreas', 'ilot', 'graisse', 'sang'], niveauMin: 1,
+    id: 't2', nom: 'Diabète de type 2', court: 'Type 2', famille: 'diabetes', zones: ['muscles', 'foie', 'pancreas', 'ilot', 'graisse', 'sang', 'intestin', 'reins', 'globules', 'coeur'], niveauMin: 1,
     severites: ['Début', 'Installé', 'Évolué'],
     appliquer: (t, s) => profil(t, s <= 0.4 ? PROFILS.t2leger : s >= 1 ? PROFILS.t2evolue : PROFILS.t2, 't2'),
     texte: {
@@ -69,7 +69,7 @@ export const PATHOLOGIES: Pathologie[] = [
     arret: 'La glycémie remonte en quelques jours ou semaines. L\'exposition au sucre reprend sa progression, et avec elle le risque de complications.',
   },
   {
-    id: 't1', nom: 'Diabète de type 1', court: 'Type 1', famille: 'diabetes', zones: ['pancreas', 'ilot', 'muscles', 'graisse', 'sang'], niveauMin: 1,
+    id: 't1', nom: 'Diabète de type 1', court: 'Type 1', famille: 'diabetes', zones: ['pancreas', 'ilot', 'muscles', 'graisse', 'sang', 'reins', 'foie', 'globules', 'cerveau'], niveauMin: 1,
     appliquer: (t) => profil(t, PROFILS.t1, 't1'),
     texte: {
       1: 'Le système immunitaire détruit les cellules qui fabriquent l\'insuline. Il n\'y a plus de clé : le sucre ne peut plus entrer dans les cellules. L\'insuline doit être injectée tous les jours, toute la vie.',
@@ -86,7 +86,7 @@ export const PATHOLOGIES: Pathologie[] = [
     arret: 'Sans insuline, l\'acidocétose s\'installe en quelques heures à quelques jours : c\'est une urgence vitale. On n\'arrête jamais l\'insuline, même si on ne mange pas (on adapte la dose).',
   },
   {
-    id: 'prediabete', nom: 'Prédiabète', court: 'Prédiabète', famille: 'diabetes', zones: ['muscles', 'pancreas', 'sang'], niveauMin: 1,
+    id: 'prediabete', nom: 'Prédiabète', court: 'Prédiabète', famille: 'diabetes', zones: ['muscles', 'pancreas', 'sang', 'graisse', 'foie'], niveauMin: 1,
     appliquer: (t) => profil(t, PROFILS.prediabete, 'prediabete'),
     texte: {
       1: 'Le sucre est un peu trop haut, pas encore au niveau du diabète. C\'est le meilleur moment pour agir : bouger plus et manger mieux peut éviter ou retarder le diabète.',
@@ -102,7 +102,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
   },
   {
-    id: 'gestationnel', nom: 'Diabète gestationnel', court: 'Gestationnel', famille: 'diabetes', zones: ['sang', 'muscles', 'pancreas'], niveauMin: 2,
+    id: 'gestationnel', nom: 'Diabète gestationnel', court: 'Gestationnel', famille: 'diabetes', zones: ['sang', 'muscles', 'pancreas', 'ilot', 'globules'], niveauMin: 2,
     appliquer: (t) => profil(t, PROFILS.prediabete, 'gestationnel'),
     texte: {
       1: 'Pendant la grossesse, les hormones du placenta rendent l\'insuline moins efficace. Si le pancréas ne suit pas, le sucre monte : c\'est le diabète gestationnel. Il disparaît en général après l\'accouchement.',
@@ -119,7 +119,7 @@ export const PATHOLOGIES: Pathologie[] = [
   },
   // ── Urgences ──
   {
-    id: 'hypo', nom: 'Hypoglycémie', court: 'Hypoglycémie', famille: 'aigues', zones: ['cerveau', 'sang', 'ilot', 'foie'], niveauMin: 1,
+    id: 'hypo', nom: 'Hypoglycémie', court: 'Hypoglycémie', famille: 'aigues', zones: ['cerveau', 'sang', 'ilot', 'foie', 'pancreas', 'muscles'], niveauMin: 1,
     appliquer: (t) => { if (t.type === 'aucun') profil(t, PROFILS.t2leger, 't2'); t.repasSaute = true; },
     demo: { glibenclamide: 1 },
     texte: {
@@ -136,7 +136,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
   },
   {
-    id: 'acidocetose', nom: 'Acidocétose diabétique', court: 'Acidocétose', famille: 'aigues', zones: ['graisse', 'foie', 'reins', 'sang'], niveauMin: 2,
+    id: 'acidocetose', nom: 'Acidocétose diabétique', court: 'Acidocétose', famille: 'aigues', zones: ['graisse', 'foie', 'reins', 'sang', 'cerveau'], niveauMin: 2,
     appliquer: (t) => profil(t, PROFILS.t1, 't1'),
     texte: {
       1: 'Sans insuline, le corps brûle ses graisses et fabrique des déchets acides. Soif intense, urines abondantes, nausées, respiration rapide, puis coma. C\'est une urgence : il faut aller à l\'hôpital.',
@@ -153,7 +153,7 @@ export const PATHOLOGIES: Pathologie[] = [
   },
   // ── Situations de la vie ──
   {
-    id: 'repasSaute', nom: 'Repas sauté', court: 'Repas sauté', famille: 'situations', zones: ['sang', 'foie'], niveauMin: 1,
+    id: 'repasSaute', nom: 'Repas sauté', court: 'Repas sauté', famille: 'situations', zones: ['sang', 'foie', 'estomac', 'intestin', 'ilot'], niveauMin: 1,
     appliquer: (t) => { t.repasSaute = true; },
     texte: {
       1: 'Le déjeuner est sauté. Sans traitement, le foie compense. Mais sous sulfamide ou insuline, le sucre peut tomber trop bas.',
@@ -165,7 +165,7 @@ export const PATHOLOGIES: Pathologie[] = [
     traitement: { propose: {}, texte: 'Sous sulfamide ou insuline rapide : ne pas sauter de repas, ou ne pas prendre la dose correspondante (insuline rapide).' },
   },
   {
-    id: 'effort', nom: 'Activité physique', court: 'Effort', famille: 'situations', zones: ['muscles'], niveauMin: 1,
+    id: 'effort', nom: 'Activité physique', court: 'Effort', famille: 'situations', zones: ['muscles', 'graisse', 'cerveau'], niveauMin: 1,
     appliquer: (t) => { t.efforts = [{ h: 17, duree: 45, intensite: 0.6 }]; },
     texte: {
       1: 'Une marche rapide de 45 minutes en fin d\'après-midi. Les muscles consomment du sucre, même sans insuline, et deviennent plus sensibles à l\'insuline pendant plusieurs heures.',
@@ -177,7 +177,7 @@ export const PATHOLOGIES: Pathologie[] = [
     traitement: { propose: {}, texte: 'Encourager l\'activité régulière. Sous insuline : adapter la dose ou prévoir une collation ; avoir du sucre sur soi.' },
   },
   {
-    id: 'ramadan', nom: 'Ramadan', court: 'Ramadan', famille: 'situations', zones: ['sang', 'foie'], niveauMin: 1,
+    id: 'ramadan', nom: 'Ramadan', court: 'Ramadan', famille: 'situations', zones: ['sang', 'foie', 'estomac', 'intestin', 'cerveau'], niveauMin: 1,
     appliquer: (t) => { t.ramadan = true; },
     texte: {
       1: 'Pendant le Ramadan, on mange au sahur (avant l\'aube) et au ndogu (au coucher du soleil). La longue journée sans manger expose à l\'hypoglycémie sous certains traitements, et les repas du soir aux glycémies hautes.',
@@ -189,7 +189,7 @@ export const PATHOLOGIES: Pathologie[] = [
     traitement: { propose: {}, retirer: ['glibenclamide'], texte: 'Adapter le traitement avec le médecin avant le Ramadan : remplacer le glibenclamide (gliclazide ou iDPP-4), réduire et décaler les doses d\'insuline, contrôler la glycémie.' },
   },
   {
-    id: 'irc', nom: 'Maladie rénale chronique', court: 'Rein malade', famille: 'situations', zones: ['reins'], niveauMin: 2,
+    id: 'irc', nom: 'Maladie rénale chronique', court: 'Rein malade', famille: 'situations', zones: ['reins', 'sang'], niveauMin: 2,
     severites: ['DFG 45-59', 'DFG 30-44', 'DFG 15-29'],
     appliquer: (t, s) => { t.rein = Math.min(t.rein, 0.9 - 0.65 * s); },
     texte: {
@@ -253,7 +253,7 @@ export const PATHOLOGIES: Pathologie[] = [
     traitement: { propose: {}, texte: 'Urgence : décharge, soins locaux, recherche d\'infection et d\'artérite ; équilibrer la glycémie (souvent par insuline en cas d\'infection).' },
   },
   {
-    id: 'coronaire', nom: 'Diabète et maladie cardiovasculaire', court: 'Cœur', famille: 'complications', zones: ['coeur'], niveauMin: 2,
+    id: 'coronaire', nom: 'Diabète et maladie cardiovasculaire', court: 'Cœur', famille: 'complications', zones: ['coeur', 'sang'], niveauMin: 2,
     appliquer: (t) => { t.coronaire = 1; },
     texte: {
       1: 'Le diabète abîme aussi les grosses artères : infarctus, AVC, artérite des jambes. Certains médicaments du diabète protègent le cœur.',
