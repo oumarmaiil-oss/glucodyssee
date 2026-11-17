@@ -90,8 +90,10 @@ export function creerRein2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
     const d = dfg(t?.rein ?? 1);
     const filtreJ = (i.G / 100) * 180 * (t?.rein ?? 1);
     texte(`Seuil rénal ≈ ${(seuil / 100).toFixed(2).replace('.', ',')} g/L${isglt2 ? ' (abaissé par l\'iSGLT2)' : ''}`, W / 2, 40, isglt2 ? '#6ee7b7' : '#e9eef8');
-    texte(`Glycémie ${(i.G / 100).toFixed(2).replace('.', ',')} g/L · filtré ≈ ${Math.round(filtreJ)} g/jour à ce niveau · urines ≈ ${Math.round(uj)} g/jour`, W / 2, 70, '#fde68a', 11.5);
-    if (i.Urein > 0.03) texte('Le sucre dépasse la capacité de réabsorption : il part dans les urines', W / 2, H - 18, '#fde68a');
+    // Deux lignes courtes : lisibles aussi sur un écran de téléphone étroit.
+    texte(`Glycémie ${(i.G / 100).toFixed(2).replace('.', ',')} g/L · à ce rythme :`, W / 2, 64, '#fde68a', 11.5);
+    texte(`filtré ≈ ${Math.round(filtreJ)} g/jour · urines ≈ ${Math.round(uj)} g/jour`, W / 2, 84, uj > 1 ? '#fde68a' : '#94a3b8', 11.5);
+    if (i.Urein > 0.03) { texte('Trop de sucre pour être repris :', W / 2, H - 38, '#fde68a'); texte('il part dans les urines', W / 2, H - 18, '#fde68a'); }
     else texte('Tout le glucose filtré est récupéré', W / 2, H - 18, '#6ee7b7');
     if (d < 60) texte(`Rein malade : DFG ≈ ${d} mL/min`, 120, 230, '#fca5a5');
     if (c.labels) {

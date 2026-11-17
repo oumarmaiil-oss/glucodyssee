@@ -46,3 +46,13 @@ une seule phrase à la fois, un seul geste par cas.
 1. `node tiktok20.cjs` → `tiktok20-video.mp4`
 2. `DUREE=20 T_PULSE=0.8 T_ARP=0.4 T_IMP=2.0 T_FIN=17.2 python3 musique.py musique20.wav`
 3. Assemblage ffmpeg comme ci-dessus → `docs/videos/glucodyssee-3-situations-20s-vertical.mp4`.
+
+## Version verticale de 20 secondes « 3 vues » (la plus récente)
+
+On montre, sans démonstration problème/solution : le Ramadan (courbe), le rein, la cellule musculaire (GLUT4).
+Chaque vue est filmée à part, puis montée avec des fondus enchaînés de 0,8 s (pas de saccade aux transitions),
+sans doigt à l'écran, une phrase par vue, musique seule.
+
+1. `node vues.cjs` → `vues-video.mp4` (≈ 2 min : on attend la bonne heure sur l'horloge de l'application)
+2. `DUREE=20 T_PULSE=0.8 T_ARP=0.4 T_IMP=2.2 T_FIN=17.6 python3 musique.py musique-vues.wav`
+3. Assemblage ffmpeg → `docs/videos/glucodyssee-3-vues-20s-vertical.mp4`.
