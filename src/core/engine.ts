@@ -26,7 +26,7 @@ export const REPAS_RAMADAN: Repas[] = [
 ];
 
 export const TERRAIN_SAIN: Terrain = {
-  type: 'aucun', ...pick(PROFILS.sain), rein: 1, repas: REPAS_JOUR, collations: [], efforts: [], ramadan: false, repasSaute: false,
+  type: 'aucun', ...pick(PROFILS.sain), rein: 1, repas: REPAS_JOUR, collations: [], injectionsPlus: [], efforts: [], ramadan: false, repasSaute: false,
   retino: 0, nephro: 0, neuro: 0, pied: 0, coronaire: 0,
 };
 
@@ -56,6 +56,7 @@ export function injectionsPour(t: Terrain, tr: Traitement, fraction = 1): Inject
   const d = (c: ClasseId) => (tr[c] ?? 0) * fraction;
   if (d('basale') > 0) inj.push({ h: 21, type: 'glargine', u: Math.round(U_BASALE(t) * d('basale')) });
   if (d('rapide') > 0) for (const r of repasDuJour(t).filter((x) => !(t.collations ?? []).includes(x))) inj.push({ h: r.h - 0.1, type: 'rapideAnalogue', u: Math.max(1, Math.round((r.g / RATIO_GLUCIDES) * d('rapide'))) });
+  for (const x of t.injectionsPlus ?? []) inj.push({ h: x.h, type: 'rapideAnalogue', u: x.u });
   if (d('melange') > 0) {
     const m = MELANGE(t);
     // Ramadan : la dose du matin passe au ndogu, celle du soir au sahur (guide IDF-DAR).

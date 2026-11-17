@@ -15,7 +15,7 @@ import { GraphiqueEvolution, LEGENDE_SCENARIOS, Moniteur, Risques } from './widg
 import { NOMS_VUES, vuePour, zoneDansVue, type Vue } from './Stage.tsx';
 import { VOYAGES, type Voyage, type VueVoyage } from '../content/voyages.ts';
 import { VUES_PATHO } from '../content/vuesPatho.ts';
-import { Route } from 'lucide-react';
+import { KeyRound, Route } from 'lucide-react';
 
 const NIVEAUX_NOMS: Record<Niveau, string> = { 1: 'Découvrir', 2: 'Comprendre', 3: 'Approfondir' };
 
@@ -42,8 +42,8 @@ function Texte3({ textes, niveau }: { textes: Record<Niveau, string>; niveau: Ni
 
 // ─────────────────────────── Explorer ───────────────────────────
 
-function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre }: {
-  onSuivre: (t: 'glucose' | 'insuline') => void;
+function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre, onAtelier }: {
+  onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void;
   onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; repas: Repas[]; onRepas: (r: Repas[]) => void; onZone: (z: ZoneId | null) => void;
 }) {
   const [choix, setChoix] = useState<Voyage['id']>('glucose');
@@ -54,6 +54,11 @@ function AccueilExplorer({ onVoyage, onVoirVue, repas, onRepas, onZone, onSuivre
         <h2 className="font-display text-xl">Les voyages</h2>
         <p className="text-sm text-muted mt-1">Suivez le glucose, l'insuline ou la défense contre l'hypoglycémie, d'un organe à l'autre et d'une vue à l'autre. Touchez une étape, ou un organe dans la scène pour voir ses maladies.</p>
       </div>
+      <button onClick={onAtelier} className="w-full carte p-3 flex items-center gap-3 text-left hover:border-[#38bdf8]/60">
+        <span className="w-9 h-9 rounded-xl bg-[#38bdf8]/15 text-[#38bdf8] grid place-items-center shrink-0"><KeyRound size={18} /></span>
+        <span className="flex-1"><span className="block text-[14px] font-bold">Atelier : la clé et la porte</span><span className="block text-[12px] text-muted">Réglez vous-même l'insuline, la résistance et l'effort : le glucose entre-t-il dans le muscle ?</span></span>
+        <ArrowRight size={15} className="text-dim" />
+      </button>
       <div className="carte p-3 space-y-2">
         <div className="titre-section">Suivre une molécule, en direct</div>
         <p className="text-[12px] text-muted">La caméra suit une seule molécule dans la vue Corps. Son trajet dépend de l'heure, du patient et du traitement : en type 1, la porte du muscle reste fermée ; après un repas, le foie en garde une partie…</p>
@@ -104,13 +109,13 @@ const ETAPE_COURTE: Record<Voyage['id'], string[]> = {
   defense: ['Le sucre descend sous 0,70 g/L', 'Les cellules bêta s\'arrêtent (sauf sous sulfamide)', 'Les cellules alpha libèrent le glucagon', 'Le foie vide ses réserves', 'Le cerveau souffre en premier', 'Règle des 15 : 15 g de sucre'],
 };
 
-export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue, onSuivre }: {
+export function PanneauExplorer({ zone, niveau, vue, actives, repas, onRepas, onZone, onTogglePatho, onVue, onVoirPatho, onVoyage, onVoirVue, onSuivre, onAtelier }: {
   zone: ZoneId | null; niveau: Niveau; vue: Vue; actives: PathoActive[]; repas: Repas[]; onRepas: (r: Repas[]) => void;
-  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; onSuivre: (t: 'glucose' | 'insuline') => void;
+  onVoyage: (id: Voyage['id']) => void; onVoirVue: (z: ZoneId, v: VueVoyage, site?: 'muscle' | 'foie') => void; onSuivre: (t: 'glucose' | 'insuline') => void; onAtelier: () => void;
   onZone: (z: ZoneId | null) => void; onTogglePatho: (id: string) => void; onVue: (v: Vue) => void; onVoirPatho: (id: string) => void;
 }) {
   if (!zone) {
-    return <AccueilExplorer onSuivre={onSuivre} onVoyage={onVoyage} onVoirVue={onVoirVue} repas={repas} onRepas={onRepas} onZone={onZone} />;
+    return <AccueilExplorer onAtelier={onAtelier} onSuivre={onSuivre} onVoyage={onVoyage} onVoirVue={onVoirVue} repas={repas} onRepas={onRepas} onZone={onZone} />;
   }
   const z = ZONES[zone];
   const idx = VOYAGE_Z.indexOf(zone);

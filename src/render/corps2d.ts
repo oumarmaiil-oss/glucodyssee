@@ -4,9 +4,11 @@
  * muscles, le cerveau, la graisse ; il déborde dans les urines au-dessus du seuil rénal.
  * L'insuline (points bleus) sort du pancréas ou du site d'injection. Les flux viennent du moteur, minute par minute.
  */
-import { cle, clamp, COUL, creerScene2D, hexagone, lerp, mix, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
+import { bouchee, cle, clamp, COUL, creerScene2D, hexagone, losange, triangle, lerp, mix, type Contexte, type OptionsRendu, type Pt, type Region, type Rendu } from './scene2d.ts';
 import type { Instant } from '../core/clock.ts';
 import { effetsVisibles } from '../core/effets.ts';
+import { repasDuJour } from '../core/engine.ts';
+import type { Etat } from '../core/types.ts';
 
 const W = 600, H = 940;
 
@@ -46,6 +48,21 @@ const GLP1 = chemin([[300, 470], [316, 440], [330, 412], [336, 396]]);
 const GLUCAGON = chemin([[318, 394], [290, 400], [270, 395], [258, 372], [244, 350]]);
 const URINE = [chemin([[232, 432], [252, 500], [292, 572]]), chemin([[376, 432], [352, 500], [308, 572]])];
 
+// Trajet du repas : bouche → œsophage → estomac, puis estomac → intestin (où l'amidon devient glucose).
+const T_BOUCHE = chemin([[300, 102], [302, 150], [306, 205], [322, 262], [340, 314], [352, 340]]);
+const T_STO_INT = chemin([[366, 356], [350, 384], [318, 420], [262, 450], [338, 462], [262, 476], [338, 490], [300, 496]]);
+const POS_ESTOMAC: Pt[] = Array.from({ length: 16 }, (_, k) => [342 + ((k * 13) % 30) - 2 + (k % 3) * 2, 334 + ((k * 7) % 22)]);
+/** Glucides encore dans l'estomac (g) et vitesse de vidange (g/min), même loi que le moteur (vidange ≈ 1,8 %/min, ralentie par les aGLP-1). */
+function estomac(e: Etat, heure: number) {
+  const k = 0.018 * (1 - 0.35 * Math.min(1, e.traitement.aglp1 ?? 0));
+  let g = 0, repasEnCours: { nom: string; g: number; depuis: number } | null = null;
+  for (const r of repasDuJour(e.terrain)) {
+    const dm = (((heure - r.h) * 60) % 1440 + 1440) % 1440;
+    if (dm < 360) { g += r.g * Math.exp(-k * dm); if (dm < 20) repasEnCours = { nom: r.nom, g: r.g, depuis: dm }; }
+  }
+  return { g, vidange: k * g, repasEnCours };
+}
+
 // Trajets de la molécule suivie.
 const T_REPAS = chemin([[356, 344], [336, 372], [310, 420], [300, 452], [300, 480]]);
 const T_INTESTIN_FOIE = chemin([[300, 480], [282, 450], [270, 410], [258, 372], [244, 348]]);
@@ -83,9 +100,11 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
   const leger = !!opt.leger;
   const sang: Particule[] = [];
   const absP: { s: number; o: number }[] = [];
+  const bouchees: { c: 'bouche' | 'intestin'; s: number; o: number }[] = [];
+  let accBouche = 0, accVid = 0, coupees = 0;
   const ins: { c: Chemin | null; b: number; s: number; o: number; vie: number }[] = [];
   const urine: { k: number; s: number }[] = [];
-  const horm: { c: Chemin; s: number; o: number; coul: string }[] = [];
+  const horm: { c: Chemin; s: number; o: number; coul: 'glp1' | 'glucagon' }[] = [];
   let accGlp = 0, accGlu = 0;
   let vessie = 0;
   // ── Molécule suivie : son trajet dépend de l'état du patient à l'heure affichée. ──
@@ -182,9 +201,19 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     const v = 150;
     // Sources : intestin (repas) et foie.
     spawnAbs += i.Ra * 9 * k * dt * 4;
-    while (spawnAbs >= 1) { spawnAbs -= 1; absP.push({ s: 0, o: Math.random() - 0.5 }); }
-    for (const p of absP) p.s += (v * 0.7 * dt) / ABS.len;
-    for (let j = absP.length - 1; j >= 0; j--) if (absP[j].s >= 1) { absP.splice(j, 1); if (sang.length < cible + 25) sang.push({ b: tire(), s: 0, o: Math.random() - 0.5 }); }
+    spawnAbs = 0;
+    // Le repas entre par la bouche (bouchées de 10 g de glucides), attend dans l'estomac, puis passe dans l'intestin
+    // au rythme de la vidange ; dans l'intestin, chaque bouchée est coupée en glucose (3 hexagones) qui part vers le foie.
+    const est = estomac(e, i.heure);
+    if (est.repasEnCours) { accBouche += (est.repasEnCours.g / 10 / 20) * 24 * dt; while (accBouche >= 1) { accBouche -= 1; bouchees.push({ c: 'bouche', s: 0, o: Math.random() - 0.5 }); } }
+    accVid += (est.vidange / 10) * 24 * dt;
+    while (accVid >= 1) { accVid -= 1; bouchees.push({ c: 'intestin', s: 0, o: Math.random() - 0.5 }); }
+    for (let j = bouchees.length - 1; j >= 0; j--) {
+      const b = bouchees[j]; b.s += ((b.c === 'bouche' ? 110 : 70) * dt) / (b.c === 'bouche' ? T_BOUCHE.len : T_STO_INT.len);
+      if (b.s >= 1) { bouchees.splice(j, 1); if (b.c === 'intestin') { coupees++; for (let q = 0; q < 3; q++) absP.push({ s: -q * 0.03, o: Math.random() - 0.5 }); } }
+    }
+    for (const p of absP) p.s += (v * 0.7 * dt) / T_INTESTIN_FOIE.len;
+    for (let j = absP.length - 1; j >= 0; j--) if (absP[j].s >= 1) { absP.splice(j, 1); if (sang.length < cible + 25) sang.push({ b: 6, s: 0.62 + Math.random() * 0.1, o: Math.random() - 0.5 }); }
     spawnFoie += i.PGE * 3 * k * dt * 4;
     while (spawnFoie >= 1) { spawnFoie -= 1; if (sang.length < cible + 15) sang.push({ b: 6, s: 0.62 + Math.random() * 0.1, o: Math.random() - 0.5 }); }
     // Rattrapage doux vers la densité cible.
@@ -217,9 +246,9 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     // Hormones : GLP-1 libéré par l'intestin au repas (renforcé par les iDPP-4) ; glucagon quand le sucre baisse.
     const trt = e.traitement;
     accGlp += (i.Ra / (i.Ra + 3)) * (e.terrain.inc + ((trt.idpp4 ?? 0) > 0 ? 0.8 : 0)) * 10 * k * dt;
-    while (accGlp >= 1) { accGlp -= 1; horm.push({ c: GLP1, s: 0, o: Math.random() - 0.5, coul: '#f472b6' }); }
+    while (accGlp >= 1) { accGlp -= 1; horm.push({ c: GLP1, s: 0, o: Math.random() - 0.5, coul: 'glp1' }); }
     accGlu += clamp(i.glucagon - 0.6, 0, 3) * 9 * k * dt;
-    while (accGlu >= 1) { accGlu -= 1; horm.push({ c: GLUCAGON, s: 0, o: Math.random() - 0.5, coul: '#c084fc' }); }
+    while (accGlu >= 1) { accGlu -= 1; horm.push({ c: GLUCAGON, s: 0, o: Math.random() - 0.5, coul: 'glucagon' }); }
     for (const h of horm) h.s += (90 * dt) / h.c.len;
     for (let j = horm.length - 1; j >= 0; j--) if (horm[j].s >= 1) horm.splice(j, 1);
     // Insuline : densité proportionnelle à l'insuline du sang ; source pancréas ou site d'injection.
@@ -300,6 +329,9 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     // Estomac et intestin.
     g.fillStyle = i.Ra > 0.3 ? 'rgba(245,176,39,.35)' : 'rgba(230,160,170,.25)'; g.strokeStyle = 'rgba(240,190,200,.45)'; g.lineWidth = 1.5;
     g.beginPath(); g.ellipse(356, 344, 34, 24, -0.4, 0, 7); g.fill(); g.stroke();
+    const est = c.etat ? estomac(c.etat, i.heure) : { g: 0, vidange: 0, repasEnCours: null };
+    const nSto = Math.min(16, Math.round(est.g / 10));
+    for (let k = 0; k < nSto; k++) { const [px, py] = POS_ESTOMAC[k]; bouchee(g, px + Math.sin(temps * 3 + k) * 1.5, py, 4.5); }
     g.strokeStyle = i.Ra > 0.3 ? 'rgba(245,176,39,.75)' : 'rgba(240,180,190,.45)'; g.lineWidth = 7;
     g.beginPath(); g.moveTo(258, 452);
     for (let k = 0; k < 4; k++) { const y = 456 + k * 18; g.bezierCurveTo(250, y + 6, 352, y, 344, y + 9); g.bezierCurveTo(352, y + 14, 250, y + 12, 258, y + 18); }
@@ -367,22 +399,22 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
         if (label) { const [mx, my] = at(cc, 0.5); texte(label, lx ?? mx, ly ?? my, coul, 11); }
       };
       const v = (x: number) => `${(x * 4.2).toFixed(0)} g/h`;
-      fleche(T_INTESTIN_FOIE, i.Ra, '#fbbf24', i.Ra > 0.05 ? `Repas +${v(i.Ra)}` : null, 196, 432);
-      fleche(T_FOIE_COEUR, i.PGE, '#fb923c', `Foie +${v(i.PGE)}`, 214, 300);
-      fleche(ARTERES[0], i.Ucer, '#f9a8d4', `Cerveau −${v(i.Ucer)}`, 372, 150);
+      fleche(T_INTESTIN_FOIE, i.Ra, '#f5b027', i.Ra > 0.05 ? `Repas +${v(i.Ra)}` : null, 196, 432);
+      fleche(T_FOIE_COEUR, i.PGE, '#f5b027', `Foie +${v(i.PGE)}`, 214, 300);
+      fleche(ARTERES[0], i.Ucer, '#f5b027', `Cerveau −${v(i.Ucer)}`, 372, 150);
       const musc = i.Uins * 0.75 + i.Ueff;
-      fleche(ARTERES[1], musc / 2, '#34d399', `Muscles −${v(musc)}`, 170, 700);
-      fleche(ARTERES[2], musc / 2, '#34d399', null);
-      fleche(ARTERES[5], i.Uins * 0.25, '#a3e635', `Graisse −${v(i.Uins * 0.25)}`, 470, 520);
-      if (i.Urein > 0.02) { fleche(URINE[0], i.Urein / 2, '#fde047', `Urines −${v(i.Urein)}`, 196, 540); fleche(URINE[1], i.Urein / 2, '#fde047', null); }
+      fleche(ARTERES[1], musc / 2, '#f5b027', `Muscles −${v(musc)}`, 170, 700);
+      fleche(ARTERES[2], musc / 2, '#f5b027', null);
+      fleche(ARTERES[5], i.Uins * 0.25, '#f5b027', `Graisse −${v(i.Uins * 0.25)}`, 470, 520);
+      if (i.Urein > 0.02) { fleche(URINE[0], i.Urein / 2, '#f5b027', `Urines −${v(i.Urein)}`, 196, 540); fleche(URINE[1], i.Urein / 2, '#f5b027', null); }
     }
     // Particules : glucose absorbé, glucose du sang, insuline.
-    for (const p of absP) { const [x, y] = at(ABS, p.s); hexagone(g, x + p.o * 4, y, 3); }
+    for (const b of bouchees) { const [x, y] = at(b.c === 'bouche' ? T_BOUCHE : T_STO_INT, b.s); if (b.c === 'intestin' && b.s > 0.8) { const f = (b.s - 0.8) / 0.2; bouchee(g, x + b.o * 4, y, 5 * (1 - f) + 1); for (let q = 0; q < 3; q++) hexagone(g, x + Math.cos(q * 2.1) * 9 * f, y + Math.sin(q * 2.1) * 9 * f, 3.2 * f); } else bouchee(g, x + b.o * 4, y, 5); }
+    for (const p of absP) { if (p.s < 0) continue; const [x, y] = at(T_INTESTIN_FOIE, p.s); hexagone(g, x + p.o * 4, y, 3.4); }
     for (const p of sang) { const [x, y] = at(BOUCLES[p.b].c, p.s); hexagone(g, x + p.o * 4, y + p.o * 2, 3); }
-    g.fillStyle = COUL.insuline;
-    for (const p of ins) { const [x, y] = p.c ? at(p.c, p.s) : at(BOUCLES[p.b].c, p.s); g.beginPath(); g.arc(x - p.o * 4, y, 2.1, 0, 7); g.fill(); }
+    for (const p of ins) { const [x, y] = p.c ? at(p.c, p.s) : at(BOUCLES[p.b].c, p.s); cle(g, x - p.o * 4, y, 3.4, 0); }
 
-    for (const h of horm) { const [x, y] = at(h.c, h.s); g.fillStyle = h.coul; g.beginPath(); g.arc(x + h.o * 3, y, 2.4, 0, 7); g.fill(); }
+    for (const h of horm) { const [x, y] = at(h.c, h.s); if (h.coul === 'glp1') losange(g, x + h.o * 3, y, 4); else triangle(g, x + h.o * 3, y, 4.2); }
     if (i.glucagon > 1.15) texte('Glucagon : le pancréas demande au foie de libérer du sucre', 160, 270, '#d8b4fe');
     // Site d'injection.
     if (i.injection) { g.strokeStyle = COUL.insuline; g.lineWidth = 2; g.beginPath(); g.moveTo(392, 506); g.lineTo(374, 520); g.stroke(); g.fillStyle = COUL.insuline; g.beginPath(); g.arc(372, 521, 3, 0, 7); g.fill(); texte(i.injection, 450, 506, '#7dd3fc'); }
@@ -398,7 +430,10 @@ export function creerCorps2D(conteneur: HTMLElement, opt: OptionsRendu = {}): Re
     if (i.Urein > 0.05) texte('Sucre dans les urines', 300, 612, '#fde68a');
     if (faim) texte('Muscles affamés : le sucre n\'entre pas', 300, 790, '#d6b4ff');
     if (i.effort) texte('Effort : les muscles captent le sucre sans insuline', 300, 790, '#6ee7b7');
-    if (i.repas) texte(`${i.repas}`, 452, 330, '#fde68a');
+    if (est.repasEnCours) texte(`${est.repasEnCours.nom} : ${est.repasEnCours.g} g de glucides avalés`, 168, 214, '#e9d5b5');
+    if (est.g > 3) texte(`Estomac : ${Math.round(est.g)} g encore à digérer`, 462, 330, '#e9d5b5');
+    else texte('Estomac vide : à jeun, le sucre vient du foie', 462, 330, '#94a3b8');
+    if (est.vidange > 0.15 && coupees > 0) texte('Intestin : l\'amidon est coupé en glucose', 452, 470, '#fde68a');
     if (!betaOk) texte('Pancréas : plus de cellules bêta', 470, 392, '#94a3b8');
     if (fx.foieFreine) texte('Metformine : le foie relâche moins de sucre', 170, 296, '#6ee7b7');
     if (fx.pancreasForce) texte('Sulfamide : insuline libérée en continu', 470, 414, '#6ee7b7');

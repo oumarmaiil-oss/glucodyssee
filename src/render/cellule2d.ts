@@ -14,16 +14,25 @@ const N_REC = 7;
 const RECEPTEURS = Array.from({ length: N_REC }, (_, k) => 70 + k * 84);
 const N_GLUT = 8;
 
-export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, siteInitial = 'muscle'): Rendu {
+export interface ReglageAtelier { ins: number; res: boolean; effort: boolean }
+export interface StatsAtelier { sang: number; gl: number; entrees: number; foie: number }
+
+export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, siteInitial = 'muscle'): Rendu & { setAtelier(r: ReglageAtelier | null, onStats?: (s: StatsAtelier) => void): void } {
   const sang: { x: number; y: number; v: number }[] = [];
   const entres: { x: number; y: number; vy: number; vie: number }[] = [];
   const sortants: { x: number; y: number; vy: number; vie: number }[] = [];
   const glut = Array.from({ length: N_GLUT }, (_, k) => ({ x: 110 + k * 62, pos: 0 })); // pos 0 = en réserve, 1 = à la membrane
   let accE = 0, accS = 0, glycogene = 0.5;
+  // Atelier « La clé et la porte » : un petit système fermé sang / muscle / foie que l'on règle à la main.
+  // Modèle simplifié : le foie relâche du sucre (freiné par l'insuline, relancé par le glucagon quand le sucre baisse) ;
+  // le muscle en capte selon le nombre de portes GLUT4 ouvertes.
+  let atelier: ReglageAtelier | null = null, onStats: ((s: StatsAtelier) => void) | undefined;
+  let pool = 60, accFoie = 0, tStats = 0, entreesRecentes = 0, foieRecent = 0;
 
   const regions = (site: string): Region[] => [{ z: site === 'foie' ? 'foie' : 'muscles', x: 20, y: MEMB - 10, w: W - 40, h: H - MEMB }, { z: 'sang', x: 20, y: 20, w: W - 40, h: MEMB - 40 }];
 
   function action(c: Contexte, i: Instant) {
+    if (atelier) return { ins: atelier.ins, porte: clamp(atelier.ins * (atelier.res ? 0.35 : 1) * 1.15 + (atelier.effort ? 0.55 : 0), 0, 1) };
     const t = c.etat?.terrain;
     const metf = (c.etat?.traitement.metformine ?? 0) > 0 ? 1.25 : 1;
     const ins = i.I / (i.I + 40);
@@ -33,6 +42,23 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
   function avancer(c: Contexte, i: Instant, dt: number) {
     const e = c.etat; if (!e) return;
     const foie = c.site === 'foie';
+    if (atelier && !foie) {
+      const { ins, porte } = action(c, i);
+      const sortieFoie = 4.5 * (1 - 0.75 * ins) + (pool < 44 ? 0.5 : 0);
+      accFoie += sortieFoie * dt;
+      while (accFoie >= 1) { accFoie -= 1; foieRecent++; if (pool < 110) pool++; }
+      accE += 0.06 * porte * pool * dt;
+      while (accE >= 1 && pool > 0) { accE -= 1; pool--; entreesRecentes++; const ouverts = glut.filter((x) => x.pos > 0.8); const gt = ouverts.length ? ouverts[(Math.random() * ouverts.length) | 0] : glut[0]; entres.push({ x: gt.x, y: MEMB - 6, vy: 60, vie: 2.4 }); }
+      for (const gt of glut) gt.pos = lerp(gt.pos, clamp(porte * N_GLUT - (gt.x - 110) / 62, 0, 1), Math.min(1, dt * 2.5));
+      while (sang.length < pool) sang.push({ x: Math.random() * W, y: 40 + Math.random() * (MEMB - 70), v: 60 + Math.random() * 50 });
+      if (sang.length > pool) sang.length = pool;
+      for (const p of sang) { p.x += p.v * dt; if (p.x > W) p.x -= W; }
+      for (const p of entres) { p.vie -= dt; p.y += p.vy * dt; }
+      for (let j = entres.length - 1; j >= 0; j--) if (entres[j].vie <= 0) entres.splice(j, 1);
+      tStats += dt;
+      if (tStats > 2) { onStats?.({ sang: pool, gl: (pool / 60) * 0.95, entrees: entreesRecentes / tStats, foie: foieRecent / tStats }); tStats = 0; entreesRecentes = 0; foieRecent = 0; }
+      return;
+    }
     const cible = Math.round(clamp(i.G, 30, 450) / 5);
     while (sang.length < cible) sang.push({ x: Math.random() * W, y: 40 + Math.random() * (MEMB - 70), v: 60 + Math.random() * 50 });
     if (sang.length > cible) sang.length = cible;
@@ -64,6 +90,8 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
     const foie = c.site === 'foie';
     const fx = effetsVisibles(e);
     const { ins, porte } = action(c, i);
+    const resist = atelier ? atelier.res : (t?.si ?? 1) < 0.6;
+    const effort = atelier ? atelier.effort : i.effort;
     // Sang (en haut) et cellule (en bas).
     g.fillStyle = 'rgba(201,66,79,.12)'; g.fillRect(0, 20, W, MEMB - 20);
     g.fillStyle = foie ? 'rgba(180,90,60,.16)' : 'rgba(225,120,130,.13)'; g.fillRect(0, MEMB, W, H - MEMB);
@@ -78,7 +106,7 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
       g.moveTo(x, MEMB + 26); g.lineTo(x, MEMB - 12); g.moveTo(x, MEMB - 12); g.lineTo(x - 12, MEMB - 32); g.moveTo(x, MEMB - 12); g.lineTo(x + 12, MEMB - 32); g.stroke();
       if (k < nCles) cle(g, x, MEMB - 40 + Math.sin(temps * 2 + k) * 1.5, 6, -Math.PI / 2);
       // Serrure grippée (type 2) : la cascade sous le récepteur répond mal.
-      if (!foie && (t?.si ?? 1) < 0.6) { g.fillStyle = 'rgba(251,191,36,.65)'; g.beginPath(); g.arc(x + 6, MEMB + 40, 6, 0, 7); g.fill(); g.beginPath(); g.arc(x - 8, MEMB + 52, 4, 0, 7); g.fill(); }
+      if (!foie && resist) { g.fillStyle = 'rgba(251,191,36,.65)'; g.beginPath(); g.arc(x + 6, MEMB + 40, 6, 0, 7); g.fill(); g.beginPath(); g.arc(x - 8, MEMB + 52, 4, 0, 7); g.fill(); }
       if (foie && k % 2 === 1 && i.glucagon > 0.6) { g.fillStyle = COUL.glucagon; g.beginPath(); g.arc(x + 30, MEMB - 26, 5, 0, 7); g.fill(); }
     });
     // Transporteurs GLUT4 (muscle) ou GLUT2 (foie).
@@ -94,7 +122,7 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
 
     // Cascade de signalisation sous les deux premiers récepteurs : IRS → PI3K → Akt → GLUT4.
     if (!foie) {
-      const res = (t?.si ?? 1) < 0.6;
+      const res = resist;
       const nCl = Math.round(ins * N_REC * 1.2);
       for (const [k, x] of RECEPTEURS.slice(0, 2).entries()) {
         const actif = k < nCl;
@@ -118,11 +146,21 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
       else if (entres.length > 2) texte('Le foie stocke le glucose (insuline)', W / 2, MEMB + 120, '#7dd3fc');
       if (fx.foieFreine) texte('Metformine : production de glucose freinée', W / 2, MEMB + 80, '#6ee7b7');
       if (i.glucagon > 1.1) texte('Glucagon : « libère tes réserves »', W / 2, 40, '#d8b4fe');
+    } else if (atelier) {
+      const etatSucre = pool < 44 ? ['Hypoglycémie : le sucre du sang s\'effondre', '#fb7185'] : pool > 90 ? ['Trop de sucre reste dans le sang', '#fbbf24'] : ['Sucre du sang dans la normale', '#6ee7b7'];
+      texte(etatSucre[0], W / 2, H - 30, etatSucre[1]);
+      if (effort) texte('Effort : les portes s\'ouvrent aussi sans insuline', W / 2, 40, '#6ee7b7');
+      else if (ins === 0) texte('Pas d\'insuline : aucune clé, portes cachées dans la cellule', W / 2, 40, '#fca5a5');
+      // Jauge du sucre du sang (à gauche).
+      g.fillStyle = 'rgba(7,10,18,.7)'; g.fillRect(8, 40, 14, MEMB - 60);
+      const hJ = (MEMB - 60) * Math.min(1, pool / 110);
+      g.fillStyle = pool < 44 ? '#fb7185' : pool > 90 ? '#fbbf24' : '#34d399'; g.fillRect(8, MEMB - 20 - hJ, 14, hJ);
+      g.strokeStyle = 'rgba(233,238,248,.5)'; g.lineWidth = 1; const yN = MEMB - 20 - (MEMB - 60) * (60 / 110); g.beginPath(); g.moveTo(4, yN); g.lineTo(26, yN); g.stroke();
     } else {
       if (porte > 0.55) texte('Clé dans la serrure : les portes GLUT4 montent, le sucre entre', W / 2, H - 30, '#6ee7b7');
       else if (i.G > 150) texte('Peu de portes ouvertes : le sucre reste dans le sang', W / 2, H - 30, '#fbbf24');
       if ((t?.si ?? 1) < 0.6) texte(t?.type === 't2' ? 'Type 2 : serrures grippées (résistance à l\'insuline)' : 'Résistance à l\'insuline : serrures un peu grippées', 470, MEMB + 80, '#fde68a');
-      if (i.effort) texte('Effort : les portes s\'ouvrent aussi sans insuline (voie AMPK)', W / 2, 40, '#6ee7b7');
+      if (effort) texte('Effort : les portes s\'ouvrent aussi sans insuline (voie AMPK)', W / 2, 40, '#6ee7b7');
       else if (fx.insulineInjectee) texte('Insuline injectée : des clés en plus', W / 2, 40, '#7dd3fc');
       if (t?.type === 't1' && ins < 0.1) texte('Type 1 : pas de clé, les portes restent fermées', W / 2, 40, '#fca5a5');
     }
@@ -132,5 +170,6 @@ export function creerCellule2D(conteneur: HTMLElement, opt: OptionsRendu = {}, s
     }
   }
 
-  return creerScene2D(conteneur, opt, { W, H, regions, dessiner, avancer, siteInitial, repli: { graisse: 'muscles' }, sMax: 4 });
+  const base = creerScene2D(conteneur, opt, { W, H, regions, dessiner, avancer, siteInitial, repli: { graisse: 'muscles' }, sMax: 4 });
+  return { ...base, setAtelier(r, cb) { if (r && !atelier) { pool = 60; entres.length = 0; } atelier = r; onStats = cb; } };
 }

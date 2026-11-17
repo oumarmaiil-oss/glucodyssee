@@ -53,11 +53,13 @@ export default function App() {
   const [actives, setActives] = useState<PathoActive[]>([]);
   const [focusPatho, setFocusPatho] = useState<string | null>(null);
   const [lectLoc, setLectLoc] = useState(false);
+  const [demandeAtelier, setDemandeAtelier] = useState(0);
   const [demandeSuivi, setDemandeSuivi] = useState<{ type: 'glucose' | 'insuline'; n: number } | null>(null);
   const [traitement, setTraitement] = useState<Traitement>({});
   const [repas, setRepas] = useState<Repas[]>(REPAS_JOUR);
   const [collations, setCollations] = useState<Repas[]>([]);
   const [effortsPerso, setEffortsPerso] = useState<Effort[]>([]);
+  const [injPerso, setInjPerso] = useState<{ h: number; u: number }[]>([]);
   const [vueEvo, setVueEvo] = useState<VueEvolution | null>(null);
   const [sonOn, setSonOn] = useState(false);
   const [ralenti, setRalenti] = useState(false);
@@ -77,7 +79,7 @@ export default function App() {
     return () => { window.removeEventListener('gluco-maj', surMaj); window.removeEventListener('beforeinstallprompt', surInstall); };
   }, []);
 
-  const terrain = useMemo(() => construireTerrain({ ...TERRAIN_SAIN, repas, collations, efforts: effortsPerso }, actives), [actives, repas, collations, effortsPerso]);
+  const terrain = useMemo(() => construireTerrain({ ...TERRAIN_SAIN, repas, collations, efforts: effortsPerso, injectionsPlus: injPerso }, actives), [actives, repas, collations, effortsPerso, injPerso]);
   const etatSans = useMemo(() => calculer(terrain, {}), [terrain]);
   const etatAuj = useMemo(() => calculer(terrain, traitement), [terrain, traitement]);
   const evoScene = useMemo(() => {
@@ -208,30 +210,31 @@ export default function App() {
   };
 
   // Agir en direct : collation, repas imprévu ou marche à l'heure affichée dans la scène (avec « Annuler »).
-  const agir = (a: 'sucre' | 'collation' | 'repas' | 'marche' | 'effacer', minute: number) => {
+  const agir = (a: 'sucre' | 'collation' | 'repas' | 'marche' | 'insuline' | 'effacer', minute: number) => {
     const h = Math.round((minute / 60) * 12) / 12;
     const hh = `${String(Math.floor(h)).padStart(2, '0')} h ${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
     const avant = instantane('');
-    if (a === 'effacer') { setCollations([]); setEffortsPerso([]); setAnnulation({ ...avant, message: 'Ajouts de la journée retirés.' }); return; }
+    if (a === 'effacer') { setCollations([]); setEffortsPerso([]); setInjPerso([]); setAnnulation({ ...avant, message: 'Ajouts de la journée retirés.' }); return; }
     if (a === 'marche') setEffortsPerso((x) => [...x, { h, duree: 30, intensite: 0.6 }]);
+    else if (a === 'insuline') setInjPerso((x) => [...x, { h, u: 4 }]);
     else {
       const ajout: Repas = a === 'sucre' ? { h, g: 15, nom: 'Resucrage (15 g)' } : a === 'collation' ? { h, g: 30, nom: 'Collation (30 g)' } : { h, g: 60, nom: 'Repas imprévu (60 g)' };
       setCollations((c) => [...c, ajout]);
     }
-    const quoi = { sucre: '15 g de sucre', collation: 'une collation de 30 g', repas: 'un repas imprévu de 60 g (sans insuline rapide)', marche: '30 minutes de marche' }[a];
+    const quoi = { sucre: '15 g de sucre', collation: 'une collation de 30 g', repas: 'un repas imprévu de 60 g (sans insuline rapide)', marche: '30 minutes de marche', insuline: '4 unités d\'insuline rapide (sous la peau)' }[a];
     setAnnulation({ ...avant, message: `Ajouté à ${hh} : ${quoi}.` });
     setAllerA({ minute: Math.max(0, minute - 20), n: Date.now() });
   };
 
   // Réinitialiser : tout revient à l'état de départ, avec « Annuler » pendant quelques secondes.
   const [cleScene, setCleScene] = useState(0);
-  const [annulation, setAnnulation] = useState<{ message: string; vue: Vue; onglet: Onglet; zone: ZoneId | null; actives: PathoActive[]; focusPatho: string | null; traitement: Traitement; vueEvo: VueEvolution | null; repas: Repas[]; collations: Repas[]; effortsPerso: Effort[] } | null>(null);
+  const [annulation, setAnnulation] = useState<{ message: string; vue: Vue; onglet: Onglet; zone: ZoneId | null; actives: PathoActive[]; focusPatho: string | null; traitement: Traitement; vueEvo: VueEvolution | null; repas: Repas[]; collations: Repas[]; effortsPerso: Effort[]; injPerso: { h: number; u: number }[] } | null>(null);
   useEffect(() => { if (!annulation) return; const t = setTimeout(() => setAnnulation(null), 8000); return () => clearTimeout(t); }, [annulation]);
-  const instantane = (message: string) => ({ message, vue, onglet, zone, actives, focusPatho, traitement, vueEvo, repas, collations, effortsPerso });
+  const instantane = (message: string) => ({ message, vue, onglet, zone, actives, focusPatho, traitement, vueEvo, repas, collations, effortsPerso, injPerso });
   const reinitialiser = () => {
     setAnnulation(instantane('Tout est revenu à l\'état de départ.'));
     setPres(null); avantPres.current = null; setTour(null); setSeq(null);
-    setActives([]); setTraitement({}); setVueEvo(null); setZone(null); setFocusPatho(null); setHisto([]); setRepas(REPAS_JOUR); setCollations([]); setEffortsPerso([]);
+    setActives([]); setTraitement({}); setVueEvo(null); setZone(null); setFocusPatho(null); setHisto([]); setRepas(REPAS_JOUR); setCollations([]); setEffortsPerso([]); setInjPerso([]);
     setOnglet('explorer'); setVue('corps'); setRalenti(false);
     if (sonOn) { son.couper(); setSonOn(false); }
     setCleScene((n) => n + 1);
@@ -240,12 +243,12 @@ export default function App() {
   const toutRetirer = () => {
     setAnnulation(instantane('Maladies et traitements retirés.'));
     setPres(null); avantPres.current = null; setSeq(null);
-    setActives([]); setTraitement({}); setVueEvo(null); setFocusPatho(null); setCollations([]); setEffortsPerso([]);
+    setActives([]); setTraitement({}); setVueEvo(null); setFocusPatho(null); setCollations([]); setEffortsPerso([]); setInjPerso([]);
   };
   const annuler = () => {
     const a = annulation; if (!a) return;
     setAnnulation(null);
-    setActives(a.actives); setTraitement(a.traitement); setVueEvo(a.vueEvo); setFocusPatho(a.focusPatho); setRepas(a.repas); setCollations(a.collations); setEffortsPerso(a.effortsPerso);
+    setActives(a.actives); setTraitement(a.traitement); setVueEvo(a.vueEvo); setFocusPatho(a.focusPatho); setRepas(a.repas); setCollations(a.collations); setEffortsPerso(a.effortsPerso); setInjPerso(a.injPerso);
     setOnglet(a.onglet); setVue(a.vue); setZone(a.zone);
   };
 
@@ -334,7 +337,7 @@ export default function App() {
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
           <div className={`${tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[36dvh]'} transition-[height] duration-300 min-h-[230px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
             <Stage key={cleScene} vue={vue} etat={etatScene} etatSans={etatSansScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={vueManuelle}
-              onVoyage={lancerVoyage} siteMicroPatho={pathoVue === 'retino' ? 'retine' : pathoVue === 'nephro' ? 'glomerule' : pathoVue === 'neuro' || pathoVue === 'pied' ? 'nerf' : null} onLectureLocale={setLectLoc} demandeSuivi={demandeSuivi} onAgir={agir} nbAjouts={collations.length + effortsPerso.length} figer={minuteVoyage} bandeau={bandeauPatho}
+              onVoyage={lancerVoyage} siteMicroPatho={pathoVue === 'retino' ? 'retine' : pathoVue === 'nephro' ? 'glomerule' : pathoVue === 'neuro' || pathoVue === 'pied' ? 'nerf' : null} onLectureLocale={setLectLoc} demandeSuivi={demandeSuivi} demandeAtelier={demandeAtelier} onAgir={agir} nbAjouts={collations.length + effortsPerso.length + injPerso.length} figer={minuteVoyage} bandeau={bandeauPatho}
               tourActif={tour !== null} site={site} onSite={setSite} allerA={allerA}
               lecture={tour && voyage && etapeVoyage && minuteVoyage !== null ? { titre: voyage.titre, texte: etapeVoyage.texte(etatScene.terrain, etatScene), detail: etapeVoyage.detail(etatScene, ((minuteVoyage % 1440) + 1440) % 1440, niveau), index: tour.i, total: voyage.etapes.length, pause: tourPause, voixDetail: true }
                 : pres && etapePres ? { titre: PRESENTATION_PAR_ID[pres.id].titre, texte: etapePres.texte, detail: etapePres.detail?.(etatScene, etatSansScene), index: pres.i, total: PRESENTATION_PAR_ID[pres.id].etapes.length, pause: pres.pause, voixDetail: true }
@@ -403,7 +406,7 @@ export default function App() {
           )}
           <div className="relative flex-1 min-h-0 flex flex-col">
           <div ref={panneau} className="flex-1 overflow-y-auto scroll-thin p-3.5 pr-5 lg:pr-3.5" data-testid="panneau">
-            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} onVoyage={lancerVoyage} onSuivre={(type) => { setTour(null); setPres(null); setSeq(null); setDemandeSuivi({ type, n: Date.now() }); }} onVoirVue={(z, v, st) => { onZone(z); if (st) setSite(st); vueManuelle(v === 'ilot' ? modeIlot : v); }} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
+            {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} actives={actives} onVoyage={lancerVoyage} onAtelier={() => { setTour(null); setPres(null); setSeq(null); setSite('muscle'); vueManuelle('cellule'); setDemandeAtelier((n) => n + 1); }} onSuivre={(type) => { setTour(null); setPres(null); setSeq(null); setDemandeSuivi({ type, n: Date.now() }); }} onVoirVue={(z, v, st) => { onZone(z); if (st) setSite(st); vueManuelle(v === 'ilot' ? modeIlot : v); }} repas={repas} onRepas={setRepas} onZone={onZone} onTogglePatho={togglePatho} onVue={vueManuelle} onVoirPatho={(id) => { setFocusPatho(id); }} />}
             {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} terrain={terrain} etat={etatAuj} etatSans={etatSans}
               onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer} onResucrage={resucrer}
               onVoir={(v) => { setTour(null); setSeq(null); const sp = focusPatho ? VUES_PATHO[focusPatho]?.site : undefined; if (v === 'cellule' && sp) setSite(sp); vueManuelle(v === 'ilot' ? modeIlot : v); }}

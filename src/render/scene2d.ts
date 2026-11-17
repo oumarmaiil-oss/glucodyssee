@@ -56,6 +56,21 @@ export function hexagone(g: CanvasRenderingContext2D, x: number, y: number, r: n
   g.closePath(); g.fill();
 }
 
+/** Triangle (glucagon). */
+export function triangle(g: CanvasRenderingContext2D, x: number, y: number, r: number, coul = COUL.glucagon) {
+  g.fillStyle = coul; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r * 0.9, y + r * 0.7); g.lineTo(x - r * 0.9, y + r * 0.7); g.closePath(); g.fill();
+}
+/** Losange (GLP-1, incrétine). */
+export function losange(g: CanvasRenderingContext2D, x: number, y: number, r: number, coul = '#f472b6') {
+  g.fillStyle = coul; g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r * 0.75, y); g.lineTo(x, y + r); g.lineTo(x - r * 0.75, y); g.closePath(); g.fill();
+}
+/** Bouchée de repas (amidon, avant digestion). */
+export function bouchee(g: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  g.fillStyle = '#d9b98c'; g.strokeStyle = '#8a6a3f'; g.lineWidth = 1.2;
+  g.beginPath(); g.ellipse(x, y, r, r * 0.8, 0.4, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(138,106,63,.6)'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.15, r * 0.22, 0, 7); g.fill(); g.beginPath(); g.arc(x + r * 0.3, y + r * 0.2, r * 0.18, 0, 7); g.fill();
+}
+
 /** Petite clé (insuline). */
 export function cle(g: CanvasRenderingContext2D, x: number, y: number, r: number, rot = 0, coul = COUL.insuline) {
   g.save(); g.translate(x, y); g.rotate(rot); g.strokeStyle = coul; g.fillStyle = coul; g.lineWidth = r * 0.45;

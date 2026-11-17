@@ -9,13 +9,14 @@ import { ZONES, type ZoneId } from '../content/zones.ts';
 import type { Rendu } from '../render/scene2d.ts';
 import { creerCorps2D, type Journal, type Molecule } from '../render/corps2d.ts';
 import { creerIlot2D } from '../render/ilot2d.ts';
-import { creerCellule2D } from '../render/cellule2d.ts';
+import { creerCellule2D, type ReglageAtelier, type StatsAtelier } from '../render/cellule2d.ts';
+import { ETAPES_ATELIER, NIVEAUX_INSULINE } from '../content/atelier.ts';
 import { creerRein2D } from '../render/rein2d.ts';
 import { creerCourbe2D } from '../render/courbe2d.ts';
 import { creerVaisseau2D, ETAPES_MICRO, SITES_MICRO, type SiteMicro } from '../render/vaisseau2d.ts';
 import { creerTraces, type ModeTraces, type Traces } from '../render/traces.ts';
 import { VOYAGES, type Voyage } from '../content/voyages.ts';
-import { Candy, Cookie, Footprints, Hand, Trash2, Route, Utensils } from 'lucide-react';
+import { Candy, Cookie, Footprints, Hand, Syringe, Trash2, Route, Utensils } from 'lucide-react';
 
 export type Vue = 'corps' | 'ilot' | 'ilot3d' | 'cellule' | 'rein' | 'courbe' | 'vaisseau';
 export type SiteCellule = 'muscle' | 'foie';
@@ -58,10 +59,12 @@ interface Props {
   onVue: (v: Vue) => void;
   onVoyage: (id: Voyage['id']) => void;
   /** Agir en direct à l'heure affichée. */
-  onAgir: (a: 'sucre' | 'collation' | 'repas' | 'marche' | 'effacer', minute: number) => void;
+  onAgir: (a: 'sucre' | 'collation' | 'repas' | 'marche' | 'insuline' | 'effacer', minute: number) => void;
   nbAjouts: number;
   /** Demande de suivre une molécule (depuis le panneau). */
   demandeSuivi?: { type: Molecule; n: number } | null;
+  /** Demande d'ouvrir l'atelier « La clé et la porte ». */
+  demandeAtelier?: number;
   /** Minute imposée par un voyage guidé : l'horloge s'y fige (null = la journée défile). */
   figer: number | null;
   /** Ce que la maladie ouverte montre dans cette vue. */
@@ -84,7 +87,7 @@ interface Props {
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean; /** La voix off lit aussi l'explication. */ voixDetail?: boolean }
 
-export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, onAgir, nbAjouts, demandeSuivi, figer, bandeau, siteMicroPatho, onLectureLocale, tourActif, lecture: lectureApp, onLecture: onLectureApp, site, onSite, allerA, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage, onAgir, nbAjouts, demandeSuivi, demandeAtelier = 0, figer, bandeau, siteMicroPatho, onLectureLocale, tourActif, lecture: lectureApp, onLecture: onLectureApp, site, onSite, allerA, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const petitEcran = typeof window !== 'undefined' && window.innerWidth < 700;
@@ -151,6 +154,21 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
   // Bilan du sucre dans le sang (vue Corps), mis à jour 4 fois par seconde.
   const [bilan, setBilan] = useState<{ ra: number; foie: number; cer: number; mus: number; eff: number; uri: number; dG: number } | null>(null);
   const vueRef = useRef(vue); vueRef.current = vue;
+  // Atelier « La clé et la porte » (vue Cellule, muscle).
+  const [atelier, setAtelier] = useState<{ etape: number; r: ReglageAtelier } | null>(null);
+  const [statsAt, setStatsAt] = useState<StatsAtelier | null>(null);
+  useEffect(() => {
+    const r = rendu.current as { setAtelier?: (x: ReglageAtelier | null, cb?: (s: StatsAtelier) => void) => void } | null;
+    if (!pret || vue !== 'cellule' || !r?.setAtelier) return;
+    r.setAtelier(atelier ? atelier.r : null, setStatsAt);
+  }, [atelier?.r, pret, vue]);
+  useEffect(() => { if (vue !== 'cellule' || site !== 'muscle') setAtelier(null); }, [vue, site]);
+  const ouvrirAtelier = () => { if (site !== 'muscle') onSite('muscle'); setStatsAt(null); setAtelier({ etape: 0, r: { ins: 0, res: false, effort: false } }); };
+  const atelierEnAttente = useRef(0);
+  useEffect(() => { if (demandeAtelier > atelierEnAttente.current && vue === 'cellule' && pret) { atelierEnAttente.current = demandeAtelier; ouvrirAtelier(); } }, [demandeAtelier, vue, pret]);
+  const regler = (x: Partial<ReglageAtelier>) => setAtelier((a) => (a ? { ...a, r: { ...a.r, ...x } } : a));
+  const etapeAt = atelier ? ETAPES_ATELIER[atelier.etape] : null;
+  const reussiAt = !!(atelier && etapeAt && etapeAt.reussi(atelier.r, statsAt));
   useEffect(() => {
     if (figer !== null) { horloge.current.aller(figer); horloge.current.pause = true; }
     else horloge.current.pause = pauseJour || (!!suivi && !suivi.fini);
@@ -453,6 +471,11 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
           <button onClick={() => onVue(vuePour(zone))} className="font-semibold text-accent">{NOMS_VUES[vuePour(zone)]} →</button>
         </div>
       )}
+      {vue === 'cellule' && site === 'muscle' && pret && !lecture && !atelier && (
+        <button onClick={ouvrirAtelier} className="absolute z-20 right-2 top-12 lg:top-14 rounded-full bg-[#38bdf8] hover:brightness-110 text-ink text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(56,189,248,.4)]">
+          <Play size={13} fill="currentColor" /> Atelier : la clé et la porte
+        </button>
+      )}
       {vue === 'vaisseau' && pret && !lecture && (
         <button onClick={() => setMicro({ i: 0, pause: false })} className="absolute z-20 right-2 top-12 lg:top-14 rounded-full bg-miel hover:brightness-110 text-ink text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(245,165,36,.45)]">
           <Play size={13} fill="currentColor" /> Les étapes de l'atteinte
@@ -463,22 +486,23 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
       )}
       {vue === 'corps' && pret && bilan && !suivi && (
         <div className="absolute z-10 right-2 top-12 lg:top-14 w-[196px] rounded-xl bg-ink/85 border border-line px-2.5 py-2 text-[11px] pointer-events-none hidden sm:block">
-          <div className="font-semibold text-txt mb-1">Le sucre du sang, en g/heure</div>
-          {([['Repas (intestin)', bilan.ra, '#fbbf24', 1], ['Foie', bilan.foie, '#fb923c', 1], ['Cerveau', bilan.cer, '#f9a8d4', -1], ['Muscles et graisse', bilan.mus, '#34d399', -1], ['Effort', bilan.eff, '#6ee7b7', -1], ['Urines', bilan.uri, '#fde047', -1]] as const).filter(([, v, , sens]) => v > 0.3 || sens === 1).map(([nom, v, coul, sens]) => (
+          <div className="font-semibold text-txt mb-1">Le glucose du sang, en g/heure</div>
+          {([['Repas (intestin)', bilan.ra, 1], ['Foie', bilan.foie, 1], ['Cerveau', bilan.cer, -1], ['Muscles et graisse', bilan.mus, -1], ['Effort', bilan.eff, -1], ['Urines', bilan.uri, -1]] as const).filter(([, v, sens]) => v > 0.3 || sens === 1).map(([nom, v, sens]) => (
             <div key={nom} className="flex items-center gap-1.5 leading-tight py-px">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: coul }} />
+              <span className={`w-3 text-center font-bold ${sens > 0 ? 'text-miel' : 'text-muted'}`}>{sens > 0 ? '+' : '−'}</span>
               <span className="flex-1 text-muted truncate">{nom}</span>
-              <span className="num" style={{ color: coul }}>{sens > 0 ? '+' : '−'}{Math.round(v)}</span>
+              <span className={`num ${sens > 0 ? 'text-miel' : 'text-txt'}`}>{Math.round(v)}</span>
             </div>
           ))}
           {(() => { const ent = bilan.ra + bilan.foie, sor = bilan.cer + bilan.mus + bilan.eff + bilan.uri; const d = ent - sor; return (
             <div className={`mt-1 pt-1 border-t border-line font-semibold ${d > 3 ? 'text-warn' : d < -3 ? 'text-accent' : 'text-ok'}`}>{d > 3 ? `↗ Il entre plus qu'il ne sort : la glycémie monte` : d < -3 ? '↘ Il sort plus qu\'il n\'entre : la glycémie baisse' : '→ Entrées ≈ sorties : glycémie stable'}</div>
           ); })()}
           <div className="mt-1.5 pt-1 border-t border-line grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-dim">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rotate-45 bg-[#f5b027]" />Glucose</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#38bdf8]" />Insuline</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#c084fc]" />Glucagon</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#f472b6]" />GLP-1</span>
+            <span className="flex items-center gap-1"><svg width="10" height="10" viewBox="-5 -5 10 10"><polygon points="4.3,2.5 0,5 -4.3,2.5 -4.3,-2.5 0,-5 4.3,-2.5" fill="#f5b027" /></svg>Glucose</span>
+            <span className="flex items-center gap-1"><svg width="12" height="10" viewBox="-6 -5 12 10"><circle cx="-3" cy="0" r="2.2" fill="none" stroke="#38bdf8" strokeWidth="1.6" /><path d="M-1 0H5M3.5 0V2.2" stroke="#38bdf8" strokeWidth="1.6" fill="none" /></svg>Insuline</span>
+            <span className="flex items-center gap-1"><svg width="10" height="10" viewBox="-5 -5 10 10"><polygon points="0,-4.5 4,3.5 -4,3.5" fill="#c084fc" /></svg>Glucagon</span>
+            <span className="flex items-center gap-1"><svg width="10" height="10" viewBox="-5 -5 10 10"><polygon points="0,-5 3.8,0 0,5 -3.8,0" fill="#f472b6" /></svg>GLP-1</span>
+            <span className="col-span-2 flex items-center gap-1"><svg width="11" height="10" viewBox="-5.5 -5 11 10"><ellipse rx="5" ry="4" fill="#d9b98c" stroke="#8a6a3f" /></svg>Repas (amidon, avant digestion)</span>
           </div>
         </div>
       )}
@@ -517,7 +541,7 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
           <div className="absolute inset-0 z-20" onClick={() => setMenuAgir(false)} aria-hidden="true" />
           <div className="absolute z-30 top-12 right-2 lg:top-14 w-64 rounded-xl bg-ink/95 border border-line p-1.5 shadow-xl fade-in" role="menu" aria-label="Agir maintenant">
             <div className="px-2.5 pt-1 pb-1.5 text-[11px] text-dim">À l'heure affichée ({fmtHeure(horloge.current.minute / 60)}), puis la journée se recalcule :</div>
-            {([['sucre', Candy, '15 g de sucre rapide', 'Le resucrage de la règle des 15'], ['collation', Cookie, 'Collation de 30 g', 'Un fruit, un morceau de pain'], ['repas', Utensils, 'Repas imprévu de 60 g', 'Sans insuline rapide en plus'], ['marche', Footprints, 'Marcher 30 minutes', 'Les muscles captent du sucre']] as const).map(([id, Icone, nom, sous]) => (
+            {([['sucre', Candy, '15 g de sucre rapide', 'Le resucrage de la règle des 15'], ['collation', Cookie, 'Collation de 30 g', 'Un fruit, un morceau de pain'], ['repas', Utensils, 'Repas imprévu de 60 g', 'Sans insuline rapide en plus'], ['marche', Footprints, 'Marcher 30 minutes', 'Les muscles captent du sucre'], ['insuline', Syringe, 'Injecter 4 U d\'insuline rapide', 'Elle fait entrer le sucre dans les muscles']] as const).map(([id, Icone, nom, sous]) => (
               <button key={id} role="menuitem" onClick={() => { setMenuAgir(false); onAgir(id, horloge.current.minute); }} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 active:bg-card2">
                 <span className="w-8 h-8 rounded-lg bg-miel/15 text-miel grid place-items-center shrink-0"><Icone size={16} /></span>
                 <span><span className="block text-[13px] font-semibold">{nom}</span><span className="block text-[11px] text-dim">{sous}</span></span>
@@ -564,6 +588,33 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
               <button onClick={() => onLecture('restart')} className="btn-icone w-8 h-8 hidden sm:grid" aria-label="Revoir depuis le début"><RotateCcw size={14} /></button>
               {voixDispo && <button onClick={() => setVoix((v) => !v)} className={`btn-icone w-8 h-8 ${voix ? 'text-ok border-ok/50' : ''}`} aria-label={voix ? 'Couper la voix off' : 'Activer la voix off'} title="Voix off"><Speech size={14} /></button>}
               <button onClick={() => onLecture('stop')} className="btn-icone w-8 h-8" aria-label="Arrêter la lecture"><X size={14} /></button>
+            </div>
+          </div>
+        </div>
+      ) : atelier && etapeAt ? (
+        <div className="absolute z-20 bottom-2 left-1/2 -translate-x-1/2 w-[97%] max-w-xl rounded-2xl bg-ink/95 border border-[#38bdf8]/60 overflow-hidden fade-in" role="region" aria-label="Atelier la clé et la porte">
+          <div className="flex gap-0.5 p-0.5">{ETAPES_ATELIER.map((_, k) => <div key={k} className={`h-1 flex-1 rounded-full ${k < atelier.etape ? 'bg-[#38bdf8]' : k === atelier.etape ? (reussiAt ? 'bg-ok' : 'bg-[#38bdf8]/50') : 'bg-card2'}`} />)}</div>
+          <div className="px-3 pt-1.5 pb-2 space-y-1.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[9.5px] uppercase tracking-wider text-dim">Atelier · {atelier.etape + 1}/{ETAPES_ATELIER.length} · {etapeAt.titre}</div>
+                <div className={`text-[12.5px] leading-snug ${reussiAt && atelier.etape > 0 && atelier.etape < ETAPES_ATELIER.length - 1 ? 'text-muted' : 'font-semibold'}`}>{etapeAt.consigne}</div>
+                {(reussiAt || atelier.etape === 0 || atelier.etape === ETAPES_ATELIER.length - 1) && <div className="text-[12px] leading-snug text-ok mt-0.5 fade-in">{reussiAt && atelier.etape > 0 && atelier.etape < ETAPES_ATELIER.length - 1 ? '✓ ' : ''}{etapeAt.explication}</div>}
+              </div>
+              <button onClick={() => setAtelier(null)} className="btn-icone w-7 h-7 shrink-0" aria-label="Fermer l'atelier"><X size={13} /></button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-dim">Insuline</span>
+              <div className="seg">{NIVEAUX_INSULINE.map((n) => <button key={n.v} className={atelier.r.ins === n.v ? 'actif' : ''} onClick={() => regler({ ins: n.v })}>{n.nom}</button>)}</div>
+              <button onClick={() => regler({ res: !atelier.r.res })} className={`puce ${atelier.r.res ? 'actif' : ''}`} aria-pressed={atelier.r.res}>Résistance (type 2)</button>
+              <button onClick={() => regler({ effort: !atelier.r.effort })} className={`puce ${atelier.r.effort ? 'actif' : ''}`} aria-pressed={atelier.r.effort}>Effort</button>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[11.5px]">
+              <span className="num text-muted">Sucre du sang ≈ <b className={statsAt && statsAt.sang < 44 ? 'text-alert' : statsAt && statsAt.sang > 90 ? 'text-warn' : 'text-ok'}>{statsAt ? statsAt.gl.toFixed(2).replace('.', ',') : '–'} g/L</b> · entre dans le muscle : <b className="text-txt">{statsAt ? statsAt.entrees.toFixed(1).replace('.', ',') : '–'}</b>/s · sort du foie : <b className="text-txt">{statsAt ? statsAt.foie.toFixed(1).replace('.', ',') : '–'}</b>/s</span>
+              <span className="flex gap-1">
+                <button onClick={() => setAtelier({ ...atelier, etape: Math.max(0, atelier.etape - 1) })} disabled={atelier.etape === 0} className="btn-icone w-8 h-8 disabled:opacity-35" aria-label="Étape précédente"><SkipBack size={14} /></button>
+                <button onClick={() => setAtelier({ ...atelier, etape: Math.min(ETAPES_ATELIER.length - 1, atelier.etape + 1) })} disabled={atelier.etape >= ETAPES_ATELIER.length - 1} className={`rounded-lg px-3 h-8 text-[12px] font-bold ${reussiAt ? 'bg-ok text-ink' : 'bg-card2 border border-line text-muted'} disabled:opacity-35`}>Suivant</button>
+              </span>
             </div>
           </div>
         </div>

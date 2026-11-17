@@ -18,6 +18,7 @@ export interface Terrain {
   rein: number; // fonction rénale relative (1 = normale ; < 0,6 = insuffisance rénale)
   repas: Repas[];
   collations: Repas[]; // resucrages et collations ajoutés à la main
+  injectionsPlus?: { h: number; u: number }[]; // injections d'insuline rapide ajoutées à la main
   efforts: Effort[];
   ramadan: boolean;
   repasSaute: boolean;
