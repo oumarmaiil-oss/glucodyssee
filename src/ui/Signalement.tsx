@@ -72,7 +72,7 @@ export function Signalement({ contexte, onClose, onSoutien }: { contexte: string
           <button onClick={copier} className="min-h-12 rounded-xl border border-line px-4 text-sm font-semibold inline-flex items-center gap-2 touch-manipulation transition-transform active:scale-[.97] active:bg-card"><Copy size={15} /> {copie ? 'Copié' : 'Copier'}</button>
         </div>
         <p className="text-[11px] text-dim">Envoyé sur WhatsApp au {WHATSAPP_AFFICHE}.</p>
-        {onSoutien && <button onClick={onSoutien} className="w-full rounded-xl border border-miel/40 bg-miel/10 py-2.5 text-[13.5px] font-semibold text-miel">♥ Soutenir Glucodyssée (Wave, Orange Money)</button>}
+        {onSoutien && <button onClick={onSoutien} className="w-full rounded-xl border border-miel/40 bg-miel/10 py-2.5 text-[13.5px] font-semibold text-miel">♥ Don · Soutien (Wave, Orange Money)</button>}
       </div>
     </div>
   );

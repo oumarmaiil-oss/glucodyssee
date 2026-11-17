@@ -5,7 +5,7 @@ import { apresDelaiEtVoix } from '../core/voix.ts';
 import { AidesDefilement } from './Defilement.tsx';
 import { BandeauInstaller, FenetreInstaller } from './Installer.tsx';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
-import { Soutien } from './Soutien.tsx';
+import { PastilleOrangeMoney, PastilleWave, Soutien } from './Soutien.tsx';
 import { calculer, evoluer, indexAn, REPAS_JOUR, TERRAIN_SAIN } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
 import type { ClasseId, Effort, Niveau, Repas, Traitement } from '../core/types.ts';
@@ -306,7 +306,7 @@ export default function App() {
           · v{__VERSION__}
           · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
           · <button onClick={() => setAideInstall(true)} className="underline decoration-dotted hover:text-txt">Installer</button>
-          · <button onClick={() => setSoutien(true)} className="underline decoration-dotted text-miel hover:text-txt">Soutenir (Wave, Orange Money)</button>
+          · <button onClick={() => setSoutien(true)} className="inline-flex items-center gap-1 hover:text-txt" title="Don · Soutien (Wave, Orange Money)"><span className="underline decoration-dotted">Don · Soutien</span> <PastilleWave taille={14} /><PastilleOrangeMoney taille={14} /></button>
           · <a href="https://oumarmaiil-oss.github.io/hemodyssee/" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">Hémodyssée</a>
         </p>
         <p>
@@ -348,7 +348,7 @@ export default function App() {
           {installer && <button onClick={() => { void installer.prompt(); setInstaller(null); }} className="btn-icone actif" title="Installer l'application" aria-label="Installer l'application"><Download size={16} /></button>}
           <button onClick={reinitialiser} className="btn-icone lg:!w-auto lg:px-2.5 lg:gap-1.5 lg:!flex lg:items-center lg:text-[12.5px] lg:font-semibold" title="Tout réinitialiser : revenir à l'état de départ" aria-label="Tout réinitialiser"><RefreshCcw size={16} /><span className="hidden lg:inline">Réinitialiser</span></button>
           <button onClick={() => void partagerApp()} className="btn-icone" title="Partager l'application" aria-label="Partager l'application"><Share2 size={16} /></button>
-          <button onClick={() => setSoutien(true)} className="btn-icone !hidden lg:!grid text-miel" title="Soutenir Glucodyssée (Wave, Orange Money)" aria-label="Soutenir Glucodyssée"><Heart size={16} /></button>
+          <button onClick={() => setSoutien(true)} className="btn-icone !hidden lg:!grid text-miel" title="Don · Soutien (Wave, Orange Money)" aria-label="Don et soutien"><Heart size={16} /></button>
           <button onClick={() => setSignaler(true)} className="h-[34px] rounded-[10px] px-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#25d366] border border-[#25d366]/40 bg-[#25d366]/10 active:scale-95 transition-transform touch-manipulation" title="Contacter l'auteur, signaler un problème ou suggérer" aria-label="Contacter ou signaler"><IconeContact size={16} /> Contact</button>
         </div>
         <div className="lg:hidden px-2 pb-1.5 grid sm:grid-cols-2 gap-1.5">
