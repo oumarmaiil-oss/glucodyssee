@@ -290,9 +290,6 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
     r.setMarges({ haut: 46, gauche: 46, droite: 10, bas: Math.max(8, basScene - decalageHote) });
   }, [pret, vue, traces, avecTraces, !!lecture, !!panneauBas, tailleScene]);
 
-  // Astuce 3D : à chaque ouverture de l'îlot 3D, jusqu'au premier geste.
-  const [astuce3D, setAstuce3D] = useState(true);
-  const geste3D = () => { if (astuce3D && vue === 'ilot3d') setAstuce3D(false); };
   // Voix off.
   const voixDispo = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const [voix, setVoix] = useState(() => { try { return localStorage.getItem('gluco.voix') === '1'; } catch { return false; } });
@@ -397,30 +394,10 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
 
   return (
     <div className={`${pleinEcran ? 'fixed inset-0 z-[45] rounded-none border-0' : 'relative w-full h-full rounded-2xl border border-line'} overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#2a2112_0%,#0b0f1c_55%,#070a12_100%)]`} data-testid="scene">
-      <div ref={hote} onPointerLeave={() => { setSurvol(null); setBulle(null); }} onPointerDown={geste3D} onWheel={geste3D} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
+      <div ref={hote} onPointerLeave={() => { setSurvol(null); setBulle(null); }} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
       {erreur3D && <div className="absolute inset-0 grid place-items-center text-center p-6 text-muted text-sm">La 3D n'est pas disponible sur cet appareil.<br />Utilisez la vue 2D.</div>}
 
-      {vue === 'ilot3d' && pret && astuce3D && !lecture && (
-        <div className="absolute z-10 left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center gap-1.5 fade-in" role="note">
-          <svg viewBox="0 0 64 40" width="58" height="36" aria-hidden="true" className="drop-shadow-[0_2px_6px_rgba(0,0,0,.6)]">
-            <path d="M10 20 a22 10 0 0 1 44 0" fill="none" stroke="#fff" strokeOpacity=".75" strokeWidth="2.2" strokeDasharray="3 4" />
-            <path d="M50 14 l5 6 l-7 2" fill="none" stroke="#fff" strokeOpacity=".85" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-            <g className="astuce-doigt"><circle cx="32" cy="27" r="6" fill="#fff" fillOpacity=".9" /><circle cx="32" cy="27" r="10" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="2" /></g>
-          </svg>
-          <div className="rounded-full bg-ink/85 border border-line px-3 py-1 text-[11.5px] sm:text-xs font-semibold text-txt whitespace-nowrap">
-            <span className="pointer-coarse:inline hidden">Glissez pour faire tourner · pincez pour zoomer</span>
-            <span className="pointer-coarse:hidden">Cliquez-glissez pour faire tourner · molette pour zoomer</span>
-          </div>
-        </div>
-      )}
-      {vue === 'ilot3d' && pret && !astuce3D && (
-        <div className="absolute z-10 left-1/2 -translate-x-1/2 bottom-0.5 lg:bottom-14 pointer-events-none whitespace-nowrap rounded-full bg-ink/80 border border-accent/30 px-2 py-px lg:px-3 lg:py-1 text-[10px] sm:text-[10.5px] lg:text-[13px] font-semibold text-muted lg:text-txt inline-flex items-center gap-1" role="note">
-          <RotateCw size={13} className="text-accent shrink-0" />
-          <span className="pointer-coarse:inline hidden">Glissez pour faire tourner · pincez pour zoomer</span>
-          <span className="pointer-coarse:hidden">Cliquez-glissez pour tourner · molette pour zoomer</span>
-        </div>
-      )}
       {estIlot && pret && (
         <div className="absolute z-10 right-2 top-12 lg:top-14 rounded-xl bg-ink/80 border border-line px-2.5 py-1.5 text-[11px] space-y-0.5 pointer-events-none">
           <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" /> Bêta : insuline</div>
@@ -436,9 +413,9 @@ export function Stage({ vue, etat, etatSans, niveau, zone, onZone, son, ralenti,
         <button onClick={() => setPauseJour((v) => !v)} className={`btn-icone !w-8 !h-8 ${pauseJour ? 'actif' : ''}`} title={pauseJour ? 'Reprendre la journée' : 'Arrêter l\'horloge'} aria-label={pauseJour ? 'Reprendre la journée' : 'Arrêter l\'horloge'} aria-pressed={pauseJour}>{pauseJour ? <Play size={14} /> : <Pause size={14} />}</button>
         {pret && (
           <div className="mt-1.5 flex flex-col rounded-[10px] border border-line bg-ink/80 overflow-hidden">
-            <button onClick={() => { geste3D(); rendu.current?.zoomer(1.35); }} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Zoomer" aria-label="Zoomer"><ZoomIn size={15} /></button>
+            <button onClick={() => rendu.current?.zoomer(1.35)} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Zoomer" aria-label="Zoomer"><ZoomIn size={15} /></button>
             <div className="h-px bg-line" />
-            <button onClick={() => { geste3D(); rendu.current?.zoomer(1 / 1.35); }} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Dézoomer" aria-label="Dézoomer"><ZoomOut size={15} /></button>
+            <button onClick={() => rendu.current?.zoomer(1 / 1.35)} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Dézoomer" aria-label="Dézoomer"><ZoomOut size={15} /></button>
           </div>
         )}
         <button onClick={() => setPleinEcran((v) => !v)} className={`btn-icone !w-8 !h-8 mt-1.5 !hidden lg:!grid ${pleinEcran ? 'actif' : ''}`} title={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-label={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-pressed={pleinEcran}>{pleinEcran ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>

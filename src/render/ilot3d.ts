@@ -26,10 +26,12 @@ export function creerIlot3D(conteneur: HTMLElement, opt: OptionsRendu = {}): Ren
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.minDistance = 4; controls.maxDistance = 16; controls.enablePan = false;
   // Rotation lente automatique, suspendue pendant et peu après un geste.
-  controls.autoRotate = true; controls.autoRotateSpeed = 2.5; // un tour en 24 s environ (vitesse liée au temps, pas aux images)
+  // Pas de rotation automatique si l'utilisateur a demandé moins d'animations (réglage d'accessibilité du téléphone).
+  const calme = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  controls.autoRotate = !calme; controls.autoRotateSpeed = 2.5; // un tour en 24 s environ (vitesse liée au temps, pas aux images)
   let repriseRotation: ReturnType<typeof setTimeout> | undefined;
   controls.addEventListener('start', () => { controls.autoRotate = false; clearTimeout(repriseRotation); });
-  controls.addEventListener('end', () => { clearTimeout(repriseRotation); repriseRotation = setTimeout(() => { controls.autoRotate = true; }, 6000); });
+  controls.addEventListener('end', () => { clearTimeout(repriseRotation); if (!calme) repriseRotation = setTimeout(() => { controls.autoRotate = true; }, 6000); });
   scene.add(new THREE.AmbientLight(0xffffff, 0.55));
   const d1 = new THREE.DirectionalLight(0xffffff, 1.1); d1.position.set(4, 6, 5); scene.add(d1);
   const d2 = new THREE.DirectionalLight(0x88aaff, 0.5); d2.position.set(-5, -2, -4); scene.add(d2);
